@@ -4,24 +4,27 @@ using UnityEngine;
 public class MazeGenerator : MonoBehaviour
 {
     [Header("Dimensions")]
-    public int width = 8;
-    public int height = 8;
+    [Range(2, 7)] public int width = 4;
+    [Range(2, 7)] public int height = 4;
+    [Range(2, 7)] public int depth = 4;
 
     [Header("Geometry")]
     public float cellSize = 4f;
-    public float wallHeight = 4f;
     public float wallThickness = 0.5f;
 
     [Header("Materials")]
     public Material wallMaterial;
-    public Material floorMaterial;
 
     [Header("Actors")]
     public Transform player;
     public Transform goal;
 
-    private bool[,] grid;
-    private int gridW, gridH;
+    [Header("Seed (0 = aléatoire)")]
+    public int seed = 0;
+
+    private bool[,,] grid;
+    private int gridW, gridH, gridD;
+    private float[] posX, sizeX, posY, sizeY, posZ, sizeZ;
 
     void Start()
     {
@@ -32,22 +35,29 @@ public class MazeGenerator : MonoBehaviour
     [ContextMenu("Generate Maze")]
     public void Generate()
     {
+        if (seed != 0)
+            Random.InitState(seed);
+
         ClearMaze();
 
         gridW = 2 * width + 1;
         gridH = 2 * height + 1;
-        grid = new bool[gridW, gridH];
+        gridD = 2 * depth + 1;
+        grid = new bool[gridW, gridH, gridD];
 
         for (int x = 0; x < gridW; x++)
-            for (int z = 0; z < gridH; z++)
-                grid[x, z] = true;
+            for (int y = 0; y < gridH; y++)
+                for (int z = 0; z < gridD; z++)
+                    grid[x, y, z] = true;
 
-        CarveDFS(1, 1);
+        CarveDFS(1, 1, 1);
+        ComputeAxes();
         BuildGeometry();
         PlaceActors();
     }
 
-    void ClearMaze()
+    [ContextMenu("Clear Maze")]
+    public void ClearMaze()
     {
         for (int i = transform.childCount - 1; i >= 0; i--)
         {
@@ -57,111 +67,101 @@ public class MazeGenerator : MonoBehaviour
         }
     }
 
-    void CarveDFS(int x, int z)
+    // DFS récursif en 6 directions (±X, ±Y, ±Z)
+    void CarveDFS(int x, int y, int z)
     {
-        grid[x, z] = false;
+        grid[x, y, z] = false;
 
-        int[] dx = { 0, 0, -2, 2 };
-        int[] dz = { 2, -2, 0, 0 };
+        int[] dx = {  2, -2,  0,  0,  0,  0 };
+        int[] dy = {  0,  0,  2, -2,  0,  0 };
+        int[] dz = {  0,  0,  0,  0,  2, -2 };
 
-        // Shuffle directions for random maze
-        for (int i = 3; i > 0; i--)
+        // Mélange aléatoire des directions
+        for (int i = 5; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
             (dx[i], dx[j]) = (dx[j], dx[i]);
+            (dy[i], dy[j]) = (dy[j], dy[i]);
             (dz[i], dz[j]) = (dz[j], dz[i]);
         }
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 6; i++)
         {
             int nx = x + dx[i];
+            int ny = y + dy[i];
             int nz = z + dz[i];
 
-            if (nx > 0 && nx < gridW - 1 && nz > 0 && nz < gridH - 1 && grid[nx, nz])
+            if (InBounds(nx, ny, nz) && grid[nx, ny, nz])
             {
-                grid[x + dx[i] / 2, z + dz[i] / 2] = false;
-                CarveDFS(nx, nz);
+                // Ouvre le mur entre la cellule actuelle et le voisin
+                grid[x + dx[i] / 2, y + dy[i] / 2, z + dz[i] / 2] = false;
+                CarveDFS(nx, ny, nz);
             }
         }
+    }
+
+    bool InBounds(int x, int y, int z) =>
+        x > 0 && x < gridW - 1 &&
+        y > 0 && y < gridH - 1 &&
+        z > 0 && z < gridD - 1;
+
+    void ComputeAxes()
+    {
+        (posX, sizeX) = BuildAxis(gridW);
+        (posY, sizeY) = BuildAxis(gridH);
+        (posZ, sizeZ) = BuildAxis(gridD);
+    }
+
+    (float[] pos, float[] size) BuildAxis(int count)
+    {
+        var pos  = new float[count];
+        var size = new float[count];
+        float cursor = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            size[i] = (i % 2 == 0) ? wallThickness : cellSize;
+            pos[i]  = cursor + size[i] / 2f;
+            cursor += size[i];
+        }
+        return (pos, size);
     }
 
     void BuildGeometry()
     {
-        // Precompute world position and size for each grid column/row
-        float[] posX = new float[gridW];
-        float[] sizeX = new float[gridW];
-        float[] posZ = new float[gridH];
-        float[] sizeZ = new float[gridH];
-
-        float cx = 0f;
         for (int gx = 0; gx < gridW; gx++)
-        {
-            sizeX[gx] = (gx % 2 == 0) ? wallThickness : cellSize;
-            posX[gx] = cx + sizeX[gx] / 2f;
-            cx += sizeX[gx];
-        }
+            for (int gy = 0; gy < gridH; gy++)
+                for (int gz = 0; gz < gridD; gz++)
+                    if (grid[gx, gy, gz])
+                        CreateCube(
+                            $"Maze_Wall_{gx}_{gy}_{gz}",
+                            new Vector3(sizeX[gx], sizeY[gy], sizeZ[gz]),
+                            new Vector3(posX[gx], posY[gy], posZ[gz]));
 
-        float cz = 0f;
-        for (int gz = 0; gz < gridH; gz++)
-        {
-            sizeZ[gz] = (gz % 2 == 0) ? wallThickness : cellSize;
-            posZ[gz] = cz + sizeZ[gz] / 2f;
-            cz += sizeZ[gz];
-        }
-
-        float totalX = cx;
-        float totalZ = cz;
-
-        CreateCube("Maze_Floor",
-            new Vector3(totalX, wallThickness, totalZ),
-            new Vector3(totalX / 2f, -wallThickness / 2f, totalZ / 2f),
-            floorMaterial);
-
-        CreateCube("Maze_Ceiling",
-            new Vector3(totalX, wallThickness, totalZ),
-            new Vector3(totalX / 2f, wallHeight + wallThickness / 2f, totalZ / 2f),
-            floorMaterial);
-
-        for (int gx = 0; gx < gridW; gx++)
-        {
-            for (int gz = 0; gz < gridH; gz++)
-            {
-                if (!grid[gx, gz]) continue;
-
-                CreateCube($"Maze_Wall_{gx}_{gz}",
-                    new Vector3(sizeX[gx], wallHeight, sizeZ[gz]),
-                    new Vector3(posX[gx], wallHeight / 2f, posZ[gz]),
-                    wallMaterial);
-            }
-        }
+        // Fusionne tous les renderers en un seul draw call
+        StaticBatchingUtility.Combine(gameObject);
     }
 
-    GameObject CreateCube(string objName, Vector3 size, Vector3 localPos, Material mat)
+    void CreateCube(string objName, Vector3 size, Vector3 localPos)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
         go.name = objName;
         go.transform.SetParent(transform, false);
         go.transform.localPosition = localPos;
-        go.transform.localScale = size;
-        if (mat != null)
-            go.GetComponent<Renderer>().sharedMaterial = mat;
-        return go;
+        go.transform.localScale   = size;
+        if (wallMaterial != null)
+            go.GetComponent<Renderer>().sharedMaterial = wallMaterial;
     }
 
     void PlaceActors()
     {
-        // Start: room at grid (1,1)
-        float startX = wallThickness + cellSize / 2f;
-        float startZ = wallThickness + cellSize / 2f;
-
+        // Départ : première salle (1,1,1)
         if (player != null)
-            player.position = transform.TransformPoint(new Vector3(startX, 1f, startZ));
+            player.position = transform.TransformPoint(
+                new Vector3(posX[1], posY[1], posZ[1]));
 
-        // Goal: room at grid (gridW-2, gridH-2)
-        float endX = width * wallThickness + (width - 0.5f) * cellSize;
-        float endZ = height * wallThickness + (height - 0.5f) * cellSize;
-
+        // Arrivée : dernière salle (gridW-2, gridH-2, gridD-2)
         if (goal != null)
-            goal.position = transform.TransformPoint(new Vector3(endX, 1f, endZ));
+            goal.position = transform.TransformPoint(
+                new Vector3(posX[gridW - 2], posY[gridH - 2], posZ[gridD - 2]));
     }
 }
