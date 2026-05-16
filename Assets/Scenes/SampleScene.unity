@@ -442,6 +442,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1238063132}
   - component: {fileID: 1238063131}
+  - component: {fileID: 1238063133}
   m_Layer: 0
   m_Name: MazeGenerator
   m_TagString: Untagged
@@ -456,13 +457,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1238063130}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ee995d86eee349a19d037078b4af128, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MazeGenerator
-  width: 8
-  height: 8
+  width: 7
+  height: 7
   depth: 4
   cellSize: 4
   wallThickness: 0.5
@@ -486,6 +487,40 @@ Transform:
   - {fileID: 1402047162}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1238063133
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1238063130}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68e0f761de74d4bc59cdff8e1e721497, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SciFiMazeGenerator
+  prefabDeadEnd: {fileID: 126730, guid: f18932879bb23b84ca5370b65419ee41, type: 3}
+  prefabStraight: {fileID: 115042, guid: 64b3f36e835346747865afbf6cf62acf, type: 3}
+  prefabCorner: {fileID: 148804, guid: 3fb07e96bb0cae643a28994c86ddc64e, type: 3}
+  prefabT: {fileID: 165962, guid: d2eb17f175564e84c8ad78ac03232e29, type: 3}
+  prefabCross: {fileID: 152896, guid: d17bc9c1cdef1c5448255edad31c1c61, type: 3}
+  prefabFloor: {fileID: 162146, guid: 5bceb99c9fa1f2a4bb9692e518bec46c, type: 3}
+  prefabWall: {fileID: 127348, guid: e37a5396a520a8e4e8e48c74975b6a61, type: 3}
+  prefabLight: {fileID: 113558, guid: 9c0a6df65fcfba243abb2cf9260b869f, type: 3}
+  player: {fileID: 1402047162}
+  goal: {fileID: 0}
+  cols: 8
+  rows: 8
+  cellSize: 4
+  lightDensity: 0.3
+  seed: 0
+  useCorridorPrefabs: 0
+  baseRotStraight: 0
+  baseRotCorner: 0
+  baseRotT: 0
+  corridorOffset: {x: 0, y: 0, z: 0}
+  baseRotWall: 0
+  wallOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &1402047159
 GameObject:
   m_ObjectHideFlags: 0
