@@ -111,8 +111,6 @@ public class PlayerController : MonoBehaviour
 
     bool IsGrounded()
     {
-        LayerMask groundMask = ~(1 << gameObject.layer);
-
         CapsuleCollider col = GetComponent<CapsuleCollider>();
         float radius = col != null ? col.radius : 0.3f;
         float halfHeight = col != null ? col.height / 2f : 0.5f;
@@ -120,7 +118,9 @@ public class PlayerController : MonoBehaviour
         Vector3 gravityDirection = Physics.gravity.normalized;
         Vector3 feetCenter = transform.position + gravityDirection * (halfHeight - radius);
 
-        return Physics.CheckSphere(feetCenter, radius + groundCheckDistance, groundMask, QueryTriggerInteraction.Ignore);
+        // On ignore uniquement le trigger, pas de filtre par layer
+        // (si le sol et le joueur sont sur le même layer, le mask ~layer excluait le sol)
+        return Physics.CheckSphere(feetCenter, radius + groundCheckDistance, ~0, QueryTriggerInteraction.Ignore);
     }
 
     public void OnGravityLeft()

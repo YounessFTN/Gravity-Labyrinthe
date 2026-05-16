@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class StartAndSensitivityUI : MonoBehaviour
@@ -8,35 +9,48 @@ public class StartAndSensitivityUI : MonoBehaviour
     const string InstanceName = "Start And Sensitivity UI";
 
     static readonly Color BackgroundColor = new Color(0.005f, 0.018f, 0.035f, 0.92f);
-    static readonly Color PanelColor = new Color(0.018f, 0.055f, 0.09f, 0.86f);
-    static readonly Color AccentColor = new Color(0f, 0.86f, 1f, 1f);
-    static readonly Color HotColor = new Color(1f, 0.28f, 0.58f, 1f);
-    static readonly Color TextColor = new Color(0.9f, 0.99f, 1f, 1f);
-    static readonly Color MutedTextColor = new Color(0.46f, 0.73f, 0.8f, 1f);
+    static readonly Color PanelColor      = new Color(0.018f, 0.055f, 0.09f,  0.86f);
+    static readonly Color AccentColor     = new Color(0f,    0.86f,  1f,     1f);
+    static readonly Color HotColor        = new Color(1f,    0.28f,  0.58f,  1f);
+    static readonly Color TextColor       = new Color(0.9f,  0.99f,  1f,     1f);
+    static readonly Color MutedTextColor  = new Color(0.46f, 0.73f,  0.8f,   1f);
+    static readonly Color DangerColor     = new Color(1f,    0.22f,  0.22f,  1f);
+    static readonly Color VictoryColor    = new Color(0.15f, 1f,     0.55f,  1f);
+
+    public static StartAndSensitivityUI Instance { get; private set; }
 
     PlayerController player;
     CanvasGroup startGroup;
     CanvasGroup sensitivityGroup;
-    Image sensitivityFill;
-    Image sensitivityPulse;
-    Text sensitivityValueText;
-    Text sensitivityStateText;
-    bool started;
-    bool sensitivityOpen;
+    CanvasGroup timerGroup;
+    CanvasGroup victoryGroup;
+    Image  sensitivityFill;
+    Image  sensitivityPulse;
+    Text   sensitivityValueText;
+    Text   sensitivityStateText;
+    Text   timerText;
+    Text   victoryTimeText;
 
-    public static StartAndSensitivityUI EnsureInstance(PlayerController player)
+    bool  started;
+    bool  sensitivityOpen;
+    float timeRemaining = 180f;
+    bool  timerRunning;
+
+    // ── Singleton ────────────────────────────────────────────────────────────────
+
+    public static StartAndSensitivityUI EnsureInstance(PlayerController p)
     {
-        StartAndSensitivityUI existing = FindFirstObjectByType<StartAndSensitivityUI>();
+        var existing = FindFirstObjectByType<StartAndSensitivityUI>();
         if (existing != null)
         {
-            existing.Bind(player);
+            existing.Bind(p);
             return existing;
         }
 
-        GameObject root = new GameObject(InstanceName);
+        var root = new GameObject(InstanceName);
         DontDestroyOnLoad(root);
-        StartAndSensitivityUI ui = root.AddComponent<StartAndSensitivityUI>();
-        ui.Bind(player);
+        var ui = root.AddComponent<StartAndSensitivityUI>();
+        ui.Bind(p);
         return ui;
     }
 
@@ -44,18 +58,27 @@ public class StartAndSensitivityUI : MonoBehaviour
     {
         player = targetPlayer;
 
-        if (!started && player != null)
+        // Réinitialise l'état (utile lors d'un rechargement de scène)
+        started       = false;
+        timerRunning  = false;
+        timeRemaining = 180f;
+
+        if (player != null)
         {
             player.SetControlsEnabled(false);
             player.LockCursor(false);
             Time.timeScale = 0f;
         }
 
+        ShowStart();
         RefreshSensitivity();
     }
 
+    // ── Cycle de vie ─────────────────────────────────────────────────────────────
+
     void Awake()
     {
+        Instance = this;
         BuildInterface();
         ShowStart();
     }
@@ -71,14 +94,22 @@ public class StartAndSensitivityUI : MonoBehaviour
             {
                 StartGame();
             }
-
             return;
         }
 
-        bool controlPressed = Keyboard.current != null &&
-            (Keyboard.current.leftCtrlKey.wasPressedThisFrame || Keyboard.current.rightCtrlKey.wasPressedThisFrame);
+        // Décompte du timer
+        if (timerRunning && timeRemaining > 0f)
+        {
+            timeRemaining -= Time.deltaTime;
+            if (timeRemaining < 0f) timeRemaining = 0f;
+            UpdateTimerDisplay();
+        }
 
-        if (controlPressed)
+        bool ctrlPressed = Keyboard.current != null &&
+            (Keyboard.current.leftCtrlKey.wasPressedThisFrame ||
+             Keyboard.current.rightCtrlKey.wasPressedThisFrame);
+
+        if (ctrlPressed)
             ToggleSensitivityPanel();
 
         if (sensitivityOpen)
@@ -95,7 +126,6 @@ public class StartAndSensitivityUI : MonoBehaviour
         {
             if (Keyboard.current.equalsKey.wasPressedThisFrame || Keyboard.current.numpadPlusKey.wasPressedThisFrame)
                 delta += 0.1f;
-
             if (Keyboard.current.minusKey.wasPressedThisFrame || Keyboard.current.numpadMinusKey.wasPressedThisFrame)
                 delta -= 0.1f;
         }
@@ -107,9 +137,13 @@ public class StartAndSensitivityUI : MonoBehaviour
         }
     }
 
+    // ── Transitions d'état ────────────────────────────────────────────────────────
+
     void StartGame()
     {
-        started = true;
+        started       = true;
+        timerRunning  = true;
+        timeRemaining = 180f;
         Time.timeScale = 1f;
 
         if (player != null)
@@ -118,31 +152,96 @@ public class StartAndSensitivityUI : MonoBehaviour
             player.LockCursor(true);
         }
 
-        startGroup.alpha = 0f;
-        startGroup.interactable = false;
+        startGroup.alpha          = 0f;
+        startGroup.interactable   = false;
         startGroup.blocksRaycasts = false;
+
+        timerGroup.alpha          = 1f;
+        timerGroup.interactable   = false;
+        timerGroup.blocksRaycasts = false;
+
+        victoryGroup.alpha          = 0f;
+        victoryGroup.interactable   = false;
+        victoryGroup.blocksRaycasts = false;
+
+        UpdateTimerDisplay();
         SetSensitivityPanelOpen(false);
     }
 
     void ShowStart()
     {
-        started = false;
-        startGroup.alpha = 1f;
-        startGroup.interactable = true;
+        started      = false;
+        timerRunning = false;
+
+        startGroup.alpha          = 1f;
+        startGroup.interactable   = true;
         startGroup.blocksRaycasts = true;
+
+        timerGroup.alpha          = 0f;
+        timerGroup.interactable   = false;
+        timerGroup.blocksRaycasts = false;
+
+        victoryGroup.alpha          = 0f;
+        victoryGroup.interactable   = false;
+        victoryGroup.blocksRaycasts = false;
+
         SetSensitivityPanelOpen(false);
     }
 
-    void ToggleSensitivityPanel()
+    public void ShowVictory()
     {
-        SetSensitivityPanelOpen(!sensitivityOpen);
+        Debug.Log($"[StartAndSensitivityUI] ShowVictory() appelé. victoryGroup null={victoryGroup == null}");
+        timerRunning = false;
+
+        if (player != null)
+        {
+            player.SetControlsEnabled(false);
+            player.LockCursor(false);
+        }
+
+        int totalSec = Mathf.CeilToInt(Mathf.Max(0f, timeRemaining));
+        int min = totalSec / 60;
+        int sec = totalSec % 60;
+        if (victoryTimeText != null)
+            victoryTimeText.text = $"TEMPS RESTANT  —  {min:D2}:{sec:D2}";
+
+        victoryGroup.alpha          = 1f;
+        victoryGroup.interactable   = true;
+        victoryGroup.blocksRaycasts = true;
+        Debug.Log("[StartAndSensitivityUI] victoryGroup rendu visible (alpha=1).");
     }
+
+    void RestartGame()
+    {
+        string sceneName = SceneManager.GetActiveScene().name;
+        Debug.Log($"[StartAndSensitivityUI] RestartGame → rechargement de '{sceneName}'");
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(sceneName);
+    }
+
+    // ── Timer ─────────────────────────────────────────────────────────────────────
+
+    void UpdateTimerDisplay()
+    {
+        if (timerText == null) return;
+
+        int totalSec = Mathf.CeilToInt(Mathf.Max(0f, timeRemaining));
+        timerText.text = $"{totalSec / 60:D2}:{totalSec % 60:D2}";
+
+        timerText.color = timeRemaining <= 30f
+            ? Color.Lerp(DangerColor, new Color(1f, 0.6f, 0.6f), 0.5f + Mathf.Sin(Time.unscaledTime * 6f) * 0.5f)
+            : TextColor;
+    }
+
+    // ── Sensibilité ───────────────────────────────────────────────────────────────
+
+    void ToggleSensitivityPanel() => SetSensitivityPanelOpen(!sensitivityOpen);
 
     void SetSensitivityPanelOpen(bool open)
     {
         sensitivityOpen = open;
-        sensitivityGroup.alpha = open ? 1f : 0f;
-        sensitivityGroup.interactable = open;
+        sensitivityGroup.alpha          = open ? 1f : 0f;
+        sensitivityGroup.interactable   = open;
         sensitivityGroup.blocksRaycasts = open;
 
         if (player != null && started)
@@ -151,8 +250,7 @@ public class StartAndSensitivityUI : MonoBehaviour
             player.LockCursor(!open);
         }
 
-        if (open)
-            UpdateSensitivityPulse();
+        if (open) UpdateSensitivityPulse();
     }
 
     void UpdateSensitivityPulse()
@@ -163,231 +261,313 @@ public class StartAndSensitivityUI : MonoBehaviour
 
     void AdjustSensitivity(float amount)
     {
-        if (player == null)
-            return;
-
+        if (player == null) return;
         player.SetMouseSensitivity(player.mouseSensitivity + amount);
         RefreshSensitivity();
     }
 
     void RefreshSensitivity()
     {
-        if (player == null || sensitivityFill == null)
-            return;
+        if (player == null || sensitivityFill == null) return;
 
-        float normalized = Mathf.InverseLerp(player.minMouseSensitivity, player.maxMouseSensitivity, player.mouseSensitivity);
-        sensitivityFill.fillAmount = normalized;
-        sensitivityFill.color = Color.Lerp(HotColor, AccentColor, normalized);
+        float norm = Mathf.InverseLerp(player.minMouseSensitivity, player.maxMouseSensitivity, player.mouseSensitivity);
+        sensitivityFill.fillAmount = norm;
+        sensitivityFill.color = Color.Lerp(HotColor, AccentColor, norm);
         sensitivityValueText.text = player.mouseSensitivity.ToString("0.0");
-        sensitivityStateText.text = normalized < 0.35f ? "LOW" : normalized > 0.72f ? "HIGH" : "BALANCED";
+        sensitivityStateText.text = norm < 0.35f ? "LOW" : norm > 0.72f ? "HIGH" : "BALANCED";
     }
+
+    // ── Construction de l'interface ───────────────────────────────────────────────
 
     void BuildInterface()
     {
-        Canvas canvas = gameObject.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        var canvas = gameObject.AddComponent<Canvas>();
+        canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 110;
 
-        CanvasScaler scaler = gameObject.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        var scaler = gameObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        scaler.matchWidthOrHeight  = 0.5f;
 
         gameObject.AddComponent<GraphicRaycaster>();
         EnsureEventSystem();
 
-        RectTransform startOverlay = CreateRect("Start Overlay", transform, Vector2.zero);
-        startOverlay.anchorMin = Vector2.zero;
-        startOverlay.anchorMax = Vector2.one;
-        startOverlay.offsetMin = Vector2.zero;
-        startOverlay.offsetMax = Vector2.zero;
+        BuildStartUI();
+        BuildSensitivityUI();
+        BuildTimerUI();
+        BuildVictoryUI();
+    }
+
+    void BuildStartUI()
+    {
+        var startOverlay = CreateFullRect("Start Overlay", transform);
         startGroup = startOverlay.gameObject.AddComponent<CanvasGroup>();
+        startOverlay.gameObject.AddComponent<Image>().color = BackgroundColor;
 
-        Image background = startOverlay.gameObject.AddComponent<Image>();
-        background.color = BackgroundColor;
-
-        RectTransform startPanel = CreateRect("Start Panel", startOverlay, new Vector2(540f, 256f));
-        startPanel.anchorMin = new Vector2(0.5f, 0.5f);
-        startPanel.anchorMax = new Vector2(0.5f, 0.5f);
-        startPanel.pivot = new Vector2(0.5f, 0.5f);
+        var startPanel = CreateRect("Start Panel", startOverlay, new Vector2(540f, 256f));
+        startPanel.anchorMin        = new Vector2(0.5f, 0.5f);
+        startPanel.anchorMax        = new Vector2(0.5f, 0.5f);
+        startPanel.pivot            = new Vector2(0.5f, 0.5f);
         startPanel.anchoredPosition = Vector2.zero;
 
-        Image panelImage = startPanel.gameObject.AddComponent<Image>();
-        panelImage.color = PanelColor;
+        startPanel.gameObject.AddComponent<Image>().color = PanelColor;
+        AddOutline(startPanel.gameObject, AccentColor, 0.5f);
 
-        Outline outline = startPanel.gameObject.AddComponent<Outline>();
-        outline.effectColor = new Color(AccentColor.r, AccentColor.g, AccentColor.b, 0.5f);
-        outline.effectDistance = new Vector2(2f, -2f);
+        CreateBar("Start Top Line",  startPanel, new Vector2(480f, 3f),   new Vector2(30f, -24f),  AccentColor, new Vector2(0f, 1f));
+        CreateBar("Start Side Line", startPanel, new Vector2(4f,   168f), new Vector2(30f, -52f),  AccentColor, new Vector2(0f, 1f));
 
-        CreateBar("Start Top Line", startPanel, new Vector2(480f, 3f), new Vector2(30f, -24f), AccentColor, new Vector2(0f, 1f));
-        CreateBar("Start Side Line", startPanel, new Vector2(4f, 168f), new Vector2(30f, -52f), AccentColor, new Vector2(0f, 1f));
-
-        Text title = CreateText("Start Title", startPanel, "GRAVITY LABYRINTHE", 34, FontStyle.Bold, TextColor);
+        var title = CreateText("Start Title", startPanel, "GRAVITY LABYRINTHE", 34, FontStyle.Bold, TextColor);
         title.rectTransform.anchoredPosition = new Vector2(52f, -58f);
-        title.rectTransform.sizeDelta = new Vector2(430f, 42f);
+        title.rectTransform.sizeDelta        = new Vector2(430f, 42f);
 
-        Text subtitle = CreateText("Start Subtitle", startPanel, "SYSTEM ONLINE  |  SHIFT GRAVITY TO ESCAPE", 13, FontStyle.Bold, MutedTextColor);
+        var subtitle = CreateText("Start Subtitle", startPanel, "SYSTEM ONLINE  |  SHIFT GRAVITY TO ESCAPE", 13, FontStyle.Bold, MutedTextColor);
         subtitle.rectTransform.anchoredPosition = new Vector2(54f, -105f);
-        subtitle.rectTransform.sizeDelta = new Vector2(430f, 22f);
+        subtitle.rectTransform.sizeDelta        = new Vector2(430f, 22f);
 
-        Button startButton = CreateButton("Start Button", startPanel, "START", new Vector2(182f, 52f), new Vector2(54f, -158f));
-        startButton.onClick.AddListener(StartGame);
+        var startBtn = CreateButton("Start Button", startPanel, "START", new Vector2(182f, 52f), new Vector2(54f, -158f));
+        startBtn.onClick.AddListener(StartGame);
 
-        Text hint = CreateText("Start Hint", startPanel, "ENTER / SPACE", 12, FontStyle.Bold, MutedTextColor);
+        var hint = CreateText("Start Hint", startPanel, "ENTER / SPACE", 12, FontStyle.Bold, MutedTextColor);
         hint.rectTransform.anchoredPosition = new Vector2(260f, -174f);
-        hint.rectTransform.sizeDelta = new Vector2(180f, 20f);
+        hint.rectTransform.sizeDelta        = new Vector2(180f, 20f);
+    }
 
-        RectTransform sensitivityPanel = CreateRect("Sensitivity Panel", transform, new Vector2(360f, 132f));
-        sensitivityPanel.anchorMin = new Vector2(1f, 0f);
-        sensitivityPanel.anchorMax = new Vector2(1f, 0f);
-        sensitivityPanel.pivot = new Vector2(1f, 0f);
+    void BuildSensitivityUI()
+    {
+        var sensitivityPanel = CreateRect("Sensitivity Panel", transform, new Vector2(360f, 132f));
+        sensitivityPanel.anchorMin        = new Vector2(1f, 0f);
+        sensitivityPanel.anchorMax        = new Vector2(1f, 0f);
+        sensitivityPanel.pivot            = new Vector2(1f, 0f);
         sensitivityPanel.anchoredPosition = new Vector2(-24f, 24f);
+
         sensitivityGroup = sensitivityPanel.gameObject.AddComponent<CanvasGroup>();
-        sensitivityGroup.alpha = 0f;
-        sensitivityGroup.interactable = false;
+        sensitivityGroup.alpha          = 0f;
+        sensitivityGroup.interactable   = false;
         sensitivityGroup.blocksRaycasts = false;
 
-        Image sensitivityImage = sensitivityPanel.gameObject.AddComponent<Image>();
-        sensitivityImage.color = PanelColor;
-
-        Outline sensitivityOutline = sensitivityPanel.gameObject.AddComponent<Outline>();
-        sensitivityOutline.effectColor = new Color(AccentColor.r, AccentColor.g, AccentColor.b, 0.45f);
-        sensitivityOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        sensitivityPanel.gameObject.AddComponent<Image>().color = PanelColor;
+        AddOutline(sensitivityPanel.gameObject, AccentColor, 0.45f);
 
         sensitivityPulse = CreateBar("Sensitivity Pulse", sensitivityPanel, new Vector2(4f, 98f), new Vector2(16f, -18f), AccentColor, new Vector2(0f, 1f));
 
-        Text sensitivityTitle = CreateText("Sensitivity Title", sensitivityPanel, "MOUSE SENSITIVITY", 13, FontStyle.Bold, MutedTextColor);
+        var sensitivityTitle = CreateText("Sensitivity Title", sensitivityPanel, "MOUSE SENSITIVITY", 13, FontStyle.Bold, MutedTextColor);
         sensitivityTitle.rectTransform.anchoredPosition = new Vector2(32f, -19f);
-        sensitivityTitle.rectTransform.sizeDelta = new Vector2(170f, 20f);
+        sensitivityTitle.rectTransform.sizeDelta        = new Vector2(170f, 20f);
 
         sensitivityValueText = CreateText("Sensitivity Value", sensitivityPanel, "2.0", 28, FontStyle.Bold, TextColor);
         sensitivityValueText.alignment = TextAnchor.MiddleRight;
         sensitivityValueText.rectTransform.anchoredPosition = new Vector2(254f, -16f);
-        sensitivityValueText.rectTransform.sizeDelta = new Vector2(74f, 34f);
+        sensitivityValueText.rectTransform.sizeDelta        = new Vector2(74f, 34f);
 
         sensitivityStateText = CreateText("Sensitivity State", sensitivityPanel, "BALANCED", 11, FontStyle.Bold, MutedTextColor);
         sensitivityStateText.rectTransform.anchoredPosition = new Vector2(32f, -48f);
-        sensitivityStateText.rectTransform.sizeDelta = new Vector2(130f, 18f);
+        sensitivityStateText.rectTransform.sizeDelta        = new Vector2(130f, 18f);
 
-        RectTransform track = CreateRect("Sensitivity Track", sensitivityPanel, new Vector2(296f, 6f));
-        track.anchorMin = new Vector2(0f, 0f);
-        track.anchorMax = new Vector2(0f, 0f);
-        track.pivot = new Vector2(0f, 0f);
+        var track = CreateRect("Sensitivity Track", sensitivityPanel, new Vector2(296f, 6f));
+        track.anchorMin        = new Vector2(0f, 0f);
+        track.anchorMax        = new Vector2(0f, 0f);
+        track.pivot            = new Vector2(0f, 0f);
         track.anchoredPosition = new Vector2(32f, 18f);
+        track.gameObject.AddComponent<Image>().color = new Color(0.08f, 0.22f, 0.27f, 0.85f);
 
-        Image trackImage = track.gameObject.AddComponent<Image>();
-        trackImage.color = new Color(0.08f, 0.22f, 0.27f, 0.85f);
+        var fill = CreateRect("Sensitivity Fill", track, Vector2.zero);
+        fill.anchorMin  = Vector2.zero;
+        fill.anchorMax  = Vector2.one;
+        fill.offsetMin  = Vector2.zero;
+        fill.offsetMax  = Vector2.zero;
 
-        RectTransform fill = CreateRect("Sensitivity Fill", track, Vector2.zero);
-        fill.anchorMin = Vector2.zero;
-        fill.anchorMax = Vector2.one;
-        fill.offsetMin = Vector2.zero;
-        fill.offsetMax = Vector2.zero;
-
-        sensitivityFill = fill.gameObject.AddComponent<Image>();
-        sensitivityFill.type = Image.Type.Filled;
+        sensitivityFill            = fill.gameObject.AddComponent<Image>();
+        sensitivityFill.type       = Image.Type.Filled;
         sensitivityFill.fillMethod = Image.FillMethod.Horizontal;
         sensitivityFill.fillOrigin = (int)Image.OriginHorizontal.Left;
         sensitivityFill.fillAmount = 0f;
 
-        Button decreaseButton = CreateButton("Sensitivity Decrease", sensitivityPanel, "-", new Vector2(48f, 34f), new Vector2(32f, -76f));
-        decreaseButton.onClick.AddListener(() => AdjustSensitivity(-0.1f));
+        var decBtn = CreateButton("Sensitivity Decrease", sensitivityPanel, "-", new Vector2(48f, 34f), new Vector2(32f, -76f));
+        decBtn.onClick.AddListener(() => AdjustSensitivity(-0.1f));
 
-        Button increaseButton = CreateButton("Sensitivity Increase", sensitivityPanel, "+", new Vector2(48f, 34f), new Vector2(92f, -76f));
-        increaseButton.onClick.AddListener(() => AdjustSensitivity(0.1f));
+        var incBtn = CreateButton("Sensitivity Increase", sensitivityPanel, "+", new Vector2(48f, 34f), new Vector2(92f, -76f));
+        incBtn.onClick.AddListener(() => AdjustSensitivity(0.1f));
 
-        Text closeHint = CreateText("Sensitivity Close Hint", sensitivityPanel, "CTRL TO CLOSE", 11, FontStyle.Bold, MutedTextColor);
+        var closeHint = CreateText("Sensitivity Close Hint", sensitivityPanel, "CTRL TO CLOSE", 11, FontStyle.Bold, MutedTextColor);
         closeHint.alignment = TextAnchor.MiddleRight;
         closeHint.rectTransform.anchoredPosition = new Vector2(178f, -83f);
-        closeHint.rectTransform.sizeDelta = new Vector2(150f, 18f);
+        closeHint.rectTransform.sizeDelta        = new Vector2(150f, 18f);
     }
+
+    void BuildTimerUI()
+    {
+        // Petit panneau en haut à gauche, caché jusqu'au démarrage
+        var timerPanel = CreateRect("Timer Panel", transform, new Vector2(160f, 76f));
+        timerPanel.anchorMin        = new Vector2(0f, 1f);
+        timerPanel.anchorMax        = new Vector2(0f, 1f);
+        timerPanel.pivot            = new Vector2(0f, 1f);
+        timerPanel.anchoredPosition = new Vector2(24f, -24f);
+
+        timerGroup = timerPanel.gameObject.AddComponent<CanvasGroup>();
+        timerGroup.alpha          = 0f;
+        timerGroup.interactable   = false;
+        timerGroup.blocksRaycasts = false;
+
+        timerPanel.gameObject.AddComponent<Image>().color = PanelColor;
+        AddOutline(timerPanel.gameObject, AccentColor, 0.5f);
+
+        CreateBar("Timer Side", timerPanel, new Vector2(3f, 56f), new Vector2(14f, -10f), AccentColor, new Vector2(0f, 1f));
+
+        var label = CreateText("Timer Label", timerPanel, "TEMPS", 11, FontStyle.Bold, MutedTextColor);
+        label.rectTransform.anchoredPosition = new Vector2(26f, -13f);
+        label.rectTransform.sizeDelta        = new Vector2(120f, 16f);
+
+        timerText = CreateText("Timer Value", timerPanel, "03:00", 30, FontStyle.Bold, TextColor);
+        timerText.alignment = TextAnchor.MiddleLeft;
+        timerText.rectTransform.anchoredPosition = new Vector2(24f, -44f);
+        timerText.rectTransform.sizeDelta        = new Vector2(128f, 32f);
+    }
+
+    void BuildVictoryUI()
+    {
+        // Overlay plein écran, caché jusqu'à la victoire
+        var victoryOverlay = CreateFullRect("Victory Overlay", transform);
+        victoryGroup = victoryOverlay.gameObject.AddComponent<CanvasGroup>();
+        victoryGroup.alpha          = 0f;
+        victoryGroup.interactable   = false;
+        victoryGroup.blocksRaycasts = false;
+        victoryOverlay.gameObject.AddComponent<Image>().color = BackgroundColor;
+
+        // Panneau central
+        var panel = CreateRect("Victory Panel", victoryOverlay, new Vector2(580f, 360f));
+        panel.anchorMin        = new Vector2(0.5f, 0.5f);
+        panel.anchorMax        = new Vector2(0.5f, 0.5f);
+        panel.pivot            = new Vector2(0.5f, 0.5f);
+        panel.anchoredPosition = Vector2.zero;
+
+        panel.gameObject.AddComponent<Image>().color = PanelColor;
+        AddOutline(panel.gameObject, VictoryColor, 0.7f);
+
+        CreateBar("Victory Top Line",    panel, new Vector2(520f, 3f),  new Vector2(30f,  -28f),  VictoryColor, new Vector2(0f, 1f));
+        CreateBar("Victory Side Line",   panel, new Vector2(4f,   280f), new Vector2(30f,  -56f), VictoryColor, new Vector2(0f, 1f));
+        CreateBar("Victory Bottom Line", panel, new Vector2(520f, 3f),  new Vector2(30f, -326f),
+            new Color(VictoryColor.r, VictoryColor.g, VictoryColor.b, 0.35f), new Vector2(0f, 1f));
+
+        var missionLabel = CreateText("Mission Label", panel, "MISSION ACCOMPLIE", 13, FontStyle.Bold, MutedTextColor);
+        missionLabel.rectTransform.anchoredPosition = new Vector2(52f, -60f);
+        missionLabel.rectTransform.sizeDelta        = new Vector2(480f, 20f);
+
+        var title = CreateText("Victory Title", panel, "TU AS GAGNÉ !", 46, FontStyle.Bold, VictoryColor);
+        title.rectTransform.anchoredPosition = new Vector2(48f, -100f);
+        title.rectTransform.sizeDelta        = new Vector2(480f, 58f);
+
+        var subtitle = CreateText("Victory Subtitle", panel, "Ta famille est sauvée !", 22, FontStyle.Normal, TextColor);
+        subtitle.rectTransform.anchoredPosition = new Vector2(52f, -168f);
+        subtitle.rectTransform.sizeDelta        = new Vector2(480f, 30f);
+
+        victoryTimeText = CreateText("Victory Time", panel, "", 14, FontStyle.Bold, MutedTextColor);
+        victoryTimeText.rectTransform.anchoredPosition = new Vector2(52f, -212f);
+        victoryTimeText.rectTransform.sizeDelta        = new Vector2(480f, 22f);
+
+        var replayBtn = CreateButton("Replay Button", panel, "REJOUER", new Vector2(200f, 52f), new Vector2(52f, -270f));
+        replayBtn.onClick.AddListener(RestartGame);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────────
 
     void EnsureEventSystem()
     {
-        if (FindFirstObjectByType<EventSystem>() != null)
-            return;
-
-        GameObject eventSystem = new GameObject("EventSystem");
-        eventSystem.AddComponent<EventSystem>();
-        eventSystem.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        if (FindFirstObjectByType<EventSystem>() != null) return;
+        var es = new GameObject("EventSystem");
+        es.AddComponent<EventSystem>();
+        es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
     }
 
-    Button CreateButton(string objectName, Transform parent, string label, Vector2 size, Vector2 position)
+    RectTransform CreateFullRect(string objName, Transform parent)
     {
-        RectTransform rect = CreateRect(objectName, parent, size);
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.pivot = new Vector2(0f, 1f);
-        rect.anchoredPosition = position;
+        var rt = CreateRect(objName, parent, Vector2.zero);
+        rt.anchorMin  = Vector2.zero;
+        rt.anchorMax  = Vector2.one;
+        rt.offsetMin  = Vector2.zero;
+        rt.offsetMax  = Vector2.zero;
+        return rt;
+    }
 
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.color = new Color(0f, 0.36f, 0.47f, 0.9f);
+    RectTransform CreateRect(string objName, Transform parent, Vector2 size)
+    {
+        var go = new GameObject(objName);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.sizeDelta = size;
+        return rt;
+    }
 
-        Button button = rect.gameObject.AddComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = image.color;
+    Image CreateBar(string objName, Transform parent, Vector2 size, Vector2 position, Color color, Vector2 pivot)
+    {
+        var rt = CreateRect(objName, parent, size);
+        rt.anchorMin        = new Vector2(0f, 1f);
+        rt.anchorMax        = new Vector2(0f, 1f);
+        rt.pivot            = pivot;
+        rt.anchoredPosition = position;
+        var img = rt.gameObject.AddComponent<Image>();
+        img.color = color;
+        return img;
+    }
+
+    Button CreateButton(string objName, Transform parent, string label, Vector2 size, Vector2 position)
+    {
+        var rt = CreateRect(objName, parent, size);
+        rt.anchorMin        = new Vector2(0f, 1f);
+        rt.anchorMax        = new Vector2(0f, 1f);
+        rt.pivot            = new Vector2(0f, 1f);
+        rt.anchoredPosition = position;
+
+        var img = rt.gameObject.AddComponent<Image>();
+        img.color = new Color(0f, 0.36f, 0.47f, 0.9f);
+
+        var btn    = rt.gameObject.AddComponent<Button>();
+        var colors = btn.colors;
+        colors.normalColor      = img.color;
         colors.highlightedColor = new Color(0f, 0.62f, 0.78f, 1f);
-        colors.pressedColor = new Color(0f, 0.9f, 1f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        button.colors = colors;
+        colors.pressedColor     = new Color(0f, 0.9f,  1f,    1f);
+        colors.selectedColor    = colors.highlightedColor;
+        btn.colors = colors;
 
-        Text text = CreateText("Label", rect, label, 18, FontStyle.Bold, TextColor);
-        text.alignment = TextAnchor.MiddleCenter;
-        text.rectTransform.anchorMin = Vector2.zero;
-        text.rectTransform.anchorMax = Vector2.one;
-        text.rectTransform.offsetMin = Vector2.zero;
-        text.rectTransform.offsetMax = Vector2.zero;
+        var txt = CreateText("Label", rt, label, 18, FontStyle.Bold, TextColor);
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.rectTransform.anchorMin  = Vector2.zero;
+        txt.rectTransform.anchorMax  = Vector2.one;
+        txt.rectTransform.offsetMin  = Vector2.zero;
+        txt.rectTransform.offsetMax  = Vector2.zero;
 
-        return button;
+        return btn;
     }
 
-    RectTransform CreateRect(string objectName, Transform parent, Vector2 size)
+    Text CreateText(string objName, Transform parent, string content, int size, FontStyle style, Color color)
     {
-        GameObject child = new GameObject(objectName);
-        child.transform.SetParent(parent, false);
-        RectTransform rect = child.AddComponent<RectTransform>();
-        rect.sizeDelta = size;
-        return rect;
+        var rt = CreateRect(objName, parent, Vector2.zero);
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot     = new Vector2(0f, 1f);
+
+        var txt = rt.gameObject.AddComponent<Text>();
+        txt.font              = GetFont();
+        txt.text              = content;
+        txt.fontSize          = size;
+        txt.fontStyle         = style;
+        txt.color             = color;
+        txt.alignment         = TextAnchor.MiddleLeft;
+        txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+        txt.verticalOverflow   = VerticalWrapMode.Truncate;
+        return txt;
     }
 
-    Image CreateBar(string objectName, Transform parent, Vector2 size, Vector2 position, Color color, Vector2 pivot)
+    void AddOutline(GameObject go, Color color, float alpha)
     {
-        RectTransform rect = CreateRect(objectName, parent, size);
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.pivot = pivot;
-        rect.anchoredPosition = position;
-
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.color = color;
-        return image;
-    }
-
-    Text CreateText(string objectName, Transform parent, string content, int size, FontStyle style, Color color)
-    {
-        RectTransform rect = CreateRect(objectName, parent, Vector2.zero);
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.pivot = new Vector2(0f, 1f);
-
-        Text text = rect.gameObject.AddComponent<Text>();
-        text.font = GetFont();
-        text.text = content;
-        text.fontSize = size;
-        text.fontStyle = style;
-        text.color = color;
-        text.alignment = TextAnchor.MiddleLeft;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Truncate;
-        return text;
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor    = new Color(color.r, color.g, color.b, alpha);
+        outline.effectDistance = new Vector2(2f, -2f);
     }
 
     Font GetFont()
     {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (font == null)
-            font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-
-        return font;
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return font != null ? font : Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }
