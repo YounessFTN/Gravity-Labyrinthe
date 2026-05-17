@@ -1,4 +1,7 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 // Configuration d'une surface du labyrinthe (mur / sol / toit)
 [System.Serializable]
@@ -6,6 +9,11 @@ public class SurfaceStyle
 {
     [Tooltip("Matériaux disponibles — un est choisi aléatoirement pour chaque cube. Laisser vide = couleur automatique.")]
     public Material[] materiaux;
+
+    [Tooltip("Image appliquee si aucun materiau n'est assigne. Glisse ici une image importee dans Assets pour changer le style.")]
+    public Texture2D texture;
+    public Vector2 textureTiling = Vector2.one;
+    public Vector2 textureOffset = Vector2.zero;
 
     [Tooltip("Couleur utilisée si aucun matériau n'est assigné.")]
     public Color couleurAuto = Color.gray;
@@ -44,6 +52,16 @@ public class MazeGenerator : MonoBehaviour
     // Matériaux de secours créés une seule fois quand les tableaux sont vides
     private Material _autoWall, _autoFloor, _autoCeiling;
 
+    void Reset()
+    {
+        AutoAssignDefaultWallTexture();
+    }
+
+    void OnValidate()
+    {
+        AutoAssignDefaultWallTexture();
+    }
+
     void Start()
     {
         if (Application.isPlaying)
@@ -80,9 +98,11 @@ public class MazeGenerator : MonoBehaviour
     // Crée un matériau opaque unique quand le tableau d'une surface est vide
     void PrepareAutoMaterials()
     {
-        _autoFloor   = HasMats(sol)  ? null : MakeMat(sol.couleurAuto);
-        _autoCeiling = HasMats(toit) ? null : MakeMat(toit.couleurAuto);
-        _autoWall    = HasMats(murs) ? null : MakeMat(murs.couleurAuto);
+        AutoAssignDefaultWallTexture();
+
+        _autoFloor   = HasMats(sol)  ? null : MakeMat(sol);
+        _autoCeiling = HasMats(toit) ? null : MakeMat(toit);
+        _autoWall    = HasMats(murs) ? null : MakeMat(murs);
     }
 
     static bool HasMats(SurfaceStyle s) =>
@@ -95,8 +115,23 @@ public class MazeGenerator : MonoBehaviour
             ?? Shader.Find("Standard");                       // Built-in
     }
 
-    static Material MakeMat(Color color) =>
-        new Material(LitShader()) { color = color };
+    static Material MakeMat(SurfaceStyle style)
+    {
+        Color color = style.texture != null ? Color.white : style.couleurAuto;
+        var mat = new Material(LitShader()) { color = color };
+        SetColor(mat, "_BaseColor", color);
+        SetColor(mat, "_Color", color);
+
+        if (style.texture != null)
+        {
+            SetTexture(mat, "_BaseMap", style.texture);
+            SetTexture(mat, "_MainTex", style.texture);
+            mat.mainTextureScale = style.textureTiling;
+            mat.mainTextureOffset = style.textureOffset;
+        }
+
+        return mat;
+    }
 
     // Choisit un matériau au hasard dans le tableau, ou retourne le matériau auto
     static Material Pick(SurfaceStyle style, Material autoMat)
@@ -110,7 +145,7 @@ public class MazeGenerator : MonoBehaviour
             if (m != null) count++;
 
         if (count == 0)
-            return MakeMat(style.couleurAuto);
+            return MakeMat(style);
 
         int pick = Random.Range(0, count);
         int idx  = 0;
@@ -121,6 +156,26 @@ public class MazeGenerator : MonoBehaviour
             idx++;
         }
         return null;
+    }
+
+    void AutoAssignDefaultWallTexture()
+    {
+#if UNITY_EDITOR
+        if (murs != null && murs.texture == null)
+            murs.texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/img (1).jpg");
+#endif
+    }
+
+    static void SetTexture(Material mat, string propertyName, Texture texture)
+    {
+        if (mat.HasProperty(propertyName))
+            mat.SetTexture(propertyName, texture);
+    }
+
+    static void SetColor(Material mat, string propertyName, Color color)
+    {
+        if (mat.HasProperty(propertyName))
+            mat.SetColor(propertyName, color);
     }
 
     [ContextMenu("Clear Maze")]

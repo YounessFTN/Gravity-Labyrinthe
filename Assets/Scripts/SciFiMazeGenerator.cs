@@ -28,6 +28,15 @@ public class SciFiMazeGenerator : MonoBehaviour
     public GameObject prefabWall;      // blank_wall_A
     public GameObject prefabLight;     // light_celing_1
 
+    [Header("Style des murs")]
+    [Tooltip("Image appliquee sur tous les murs generes. Glisse ici une image importee dans Assets pour changer le style.")]
+    public Texture2D wallTexture;
+    [Tooltip("Materiau optionnel utilise comme base. S'il est vide, un materiau URP/Lit est cree automatiquement.")]
+    public Material wallMaterial;
+    public Color wallTint = Color.white;
+    public Vector2 wallTextureTiling = Vector2.one;
+    public Vector2 wallTextureOffset = Vector2.zero;
+
     [Header("Acteurs")]
     public Transform player;
     public Transform goal;
@@ -54,6 +63,7 @@ public class SciFiMazeGenerator : MonoBehaviour
 
     private bool[,,] open;
     private bool[,]  visited;
+    private Material runtimeWallMaterial;
 
     // ── Auto-setup ────────────────────────────────────────────────────────────
 
@@ -80,6 +90,7 @@ public class SciFiMazeGenerator : MonoBehaviour
         prefabFloor    = Load($"{ROOT}/Floors/floor_1.prefab");
         prefabWall     = Load($"{ROOT}/Walls/Simple/blank_wall_A.prefab");
         prefabLight    = Load($"{ROOT}/Lights/light_celing_1.prefab");
+        wallTexture    = wallTexture ? wallTexture : LoadTexture("Assets/img (1).jpg");
 #endif
     }
 
@@ -98,21 +109,25 @@ public class SciFiMazeGenerator : MonoBehaviour
         prefabFloor    = prefabFloor    ? prefabFloor    : Load($"{ROOT}/Floors/floor_1.prefab");
         prefabWall     = prefabWall     ? prefabWall     : Load($"{ROOT}/Walls/Simple/blank_wall_A.prefab");
         prefabLight    = prefabLight    ? prefabLight    : Load($"{ROOT}/Lights/light_celing_1.prefab");
+        wallTexture    = wallTexture    ? wallTexture    : LoadTexture("Assets/img (1).jpg");
 #endif
     }
 
     void AutoAssignActors()
     {
-        var pc = FindObjectOfType<PlayerController>();
+        var pc = FindAnyObjectByType<PlayerController>();
         if (pc != null) player = pc.transform;
 
-        var gz = FindObjectOfType<GoalZone>();
+        var gz = FindAnyObjectByType<GoalZone>();
         if (gz != null) goal = gz.transform;
     }
 
 #if UNITY_EDITOR
     static GameObject Load(string path) =>
         AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+    static Texture2D LoadTexture(string path) =>
+        AssetDatabase.LoadAssetAtPath<Texture2D>(path);
 #endif
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -150,6 +165,22 @@ public class SciFiMazeGenerator : MonoBehaviour
             var c = transform.GetChild(i);
             if (c.name.StartsWith("Cell_"))
                 DestroyImmediate(c.gameObject);
+        }
+    }
+
+    [ContextMenu("Apply Wall Style To Existing Walls")]
+    public void ApplyWallStyleToExistingWalls()
+    {
+        foreach (Transform cell in transform)
+        {
+            if (!cell.name.StartsWith("Cell_"))
+                continue;
+
+            foreach (Transform child in cell)
+            {
+                if (child.name.StartsWith("Generated_Wall") || child.name.Contains("wall"))
+                    ApplyWallStyle(child.gameObject);
+            }
         }
     }
 
@@ -237,7 +268,9 @@ public class SciFiMazeGenerator : MonoBehaviour
     {
         if (prefabWall)
         {
-            Spawn(prefabWall, parent, localPos + wallOffset, baseRotWall + yRot);
+            var wallInstance = Spawn(prefabWall, parent, localPos + wallOffset, baseRotWall + yRot);
+            wallInstance.name = "Generated_Wall";
+            ApplyWallStyle(wallInstance);
             return;
         }
 
@@ -247,6 +280,7 @@ public class SciFiMazeGenerator : MonoBehaviour
         wall.transform.localPosition = localPos + wallOffset + new Vector3(0f, 2f, 0f);
         wall.transform.localRotation = Quaternion.Euler(0f, baseRotWall + yRot, 0f);
         wall.transform.localScale = new Vector3(cellSize, 4f, 0.2f);
+        ApplyWallStyle(wall);
     }
 
     // ── Sélection du prefab ───────────────────────────────────────────────────
@@ -302,11 +336,71 @@ public class SciFiMazeGenerator : MonoBehaviour
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    void Spawn(GameObject prefab, Transform parent, Vector3 localPos, float yRot)
+    GameObject Spawn(GameObject prefab, Transform parent, Vector3 localPos, float yRot)
     {
         var go = Instantiate(prefab, parent);
         go.transform.localPosition = localPos;
         go.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
+        return go;
+    }
+
+    void ApplyWallStyle(GameObject wall)
+    {
+        Material mat = GetWallMaterial();
+        if (mat == null)
+            return;
+
+        foreach (var renderer in wall.GetComponentsInChildren<Renderer>())
+            renderer.sharedMaterial = mat;
+    }
+
+    Material GetWallMaterial()
+    {
+        if (wallMaterial == null && wallTexture == null)
+            return null;
+
+        if (runtimeWallMaterial == null)
+        {
+            runtimeWallMaterial = wallMaterial != null
+                ? new Material(wallMaterial)
+                : new Material(LitShader());
+
+            runtimeWallMaterial.name = "Generated Wall Material";
+        }
+
+        Color tint = wallTexture != null ? Color.white : wallTint;
+        runtimeWallMaterial.color = tint;
+        SetColor(runtimeWallMaterial, "_BaseColor", tint);
+        SetColor(runtimeWallMaterial, "_Color", tint);
+
+        if (wallTexture != null)
+        {
+            SetTexture(runtimeWallMaterial, "_BaseMap", wallTexture);
+            SetTexture(runtimeWallMaterial, "_MainTex", wallTexture);
+            runtimeWallMaterial.mainTextureScale = wallTextureTiling;
+            runtimeWallMaterial.mainTextureOffset = wallTextureOffset;
+        }
+
+        return runtimeWallMaterial;
+    }
+
+    static Shader LitShader()
+    {
+        return Shader.Find("Universal Render Pipeline/Lit")
+            ?? Shader.Find("HDRP/Lit")
+            ?? Shader.Find("Standard");
+    }
+
+    static void SetTexture(Material mat, string propertyName, Texture texture)
+    {
+        if (mat.HasProperty(propertyName))
+            mat.SetTexture(propertyName, texture);
+    }
+
+    static void SetColor(Material mat, string propertyName, Color color)
+    {
+        if (mat.HasProperty(propertyName))
+            mat.SetColor(propertyName, color);
     }
 
     int  DX(int d)      => d == E ? 1 : d == W ? -1 : 0;

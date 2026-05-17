@@ -44,7 +44,7 @@ public class StartAndSensitivityUI : MonoBehaviour
 
     public static StartAndSensitivityUI EnsureInstance(PlayerController p)
     {
-        var existing = FindFirstObjectByType<StartAndSensitivityUI>();
+        var existing = FindAnyObjectByType<StartAndSensitivityUI>();
         if (existing != null)
         {
             existing.Bind(p);
@@ -560,7 +560,7 @@ public class StartAndSensitivityUI : MonoBehaviour
 
     void EnsureEventSystem()
     {
-        if (FindFirstObjectByType<EventSystem>() != null) return;
+        if (FindAnyObjectByType<EventSystem>() != null) return;
         var es = new GameObject("EventSystem");
         es.AddComponent<EventSystem>();
         es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();

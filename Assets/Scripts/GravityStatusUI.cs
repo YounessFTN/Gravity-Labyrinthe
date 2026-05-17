@@ -24,7 +24,7 @@ public class GravityStatusUI : MonoBehaviour
 
     public static GravityStatusUI EnsureInstance()
     {
-        GravityStatusUI existing = FindFirstObjectByType<GravityStatusUI>();
+        GravityStatusUI existing = FindAnyObjectByType<GravityStatusUI>();
         if (existing != null)
             return existing;
 
