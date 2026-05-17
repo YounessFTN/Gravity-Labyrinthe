@@ -7,6 +7,8 @@ using UnityEngine.UI;
 public class StartAndSensitivityUI : MonoBehaviour
 {
     const string InstanceName = "Start And Sensitivity UI";
+    const string StartBackgroundResourceName = "StartBackground";
+    const string StartBackgroundAssetPath = "Assets/bg-start.png";
     const float GameDuration = 180f;
 
     static readonly Color BackgroundColor = new Color(0.005f, 0.018f, 0.035f, 0.92f);
@@ -347,34 +349,154 @@ public class StartAndSensitivityUI : MonoBehaviour
     {
         var startOverlay = CreateFullRect("Start Overlay", transform);
         startGroup = startOverlay.gameObject.AddComponent<CanvasGroup>();
-        startOverlay.gameObject.AddComponent<Image>().color = BackgroundColor;
+        startOverlay.gameObject.AddComponent<Image>().color = new Color(0.004f, 0.015f, 0.028f, 1f);
 
-        var startPanel = CreateRect("Start Panel", startOverlay, new Vector2(540f, 256f));
-        startPanel.anchorMin        = new Vector2(0.5f, 0.5f);
-        startPanel.anchorMax        = new Vector2(0.5f, 0.5f);
-        startPanel.pivot            = new Vector2(0.5f, 0.5f);
-        startPanel.anchoredPosition = Vector2.zero;
+        CreateStartBackground(startOverlay);
 
-        startPanel.gameObject.AddComponent<Image>().color = PanelColor;
+        var shade = CreateFullRect("Start Background Shade", startOverlay);
+        shade.gameObject.AddComponent<Image>().color = new Color(0f, 0.012f, 0.024f, 0.30f);
+
+        var topHud = CreateRect("Start Top HUD", startOverlay, new Vector2(0f, 34f));
+        topHud.anchorMin = new Vector2(0f, 1f);
+        topHud.anchorMax = new Vector2(1f, 1f);
+        topHud.pivot = new Vector2(0.5f, 1f);
+        topHud.offsetMin = new Vector2(0f, -34f);
+        topHud.offsetMax = Vector2.zero;
+        topHud.gameObject.AddComponent<Image>().color = new Color(0f, 0.035f, 0.06f, 0.72f);
+
+        var school = CreateText("Start School", topHud, "ESCEN Tech | 3rd Year - Tech Major | LEARNING EXPEDITION - MONTREAL", 14, FontStyle.Bold, MutedTextColor);
+        school.rectTransform.anchoredPosition = new Vector2(18f, -7f);
+        school.rectTransform.sizeDelta = new Vector2(760f, 22f);
+
+        var author = CreateText("Start Author", topHud, "AUTHOR: YOUNESS FATINE", 14, FontStyle.Bold, MutedTextColor);
+        author.alignment = TextAnchor.MiddleRight;
+        author.rectTransform.anchorMin = new Vector2(1f, 1f);
+        author.rectTransform.anchorMax = new Vector2(1f, 1f);
+        author.rectTransform.pivot = new Vector2(1f, 1f);
+        author.rectTransform.anchoredPosition = new Vector2(-18f, -7f);
+        author.rectTransform.sizeDelta = new Vector2(340f, 22f);
+
+        var rulesPanel = CreateRect("Rules Panel", startOverlay, new Vector2(380f, 580f));
+        rulesPanel.anchorMin = new Vector2(0f, 0.5f);
+        rulesPanel.anchorMax = new Vector2(0f, 0.5f);
+        rulesPanel.pivot = new Vector2(0f, 0.5f);
+        rulesPanel.anchoredPosition = new Vector2(70f, -18f);
+        rulesPanel.gameObject.AddComponent<Image>().color = new Color(0.005f, 0.055f, 0.075f, 0.58f);
+        AddOutline(rulesPanel.gameObject, AccentColor, 0.72f);
+
+        CreateBar("Rules Top Glow", rulesPanel, new Vector2(320f, 3f), new Vector2(28f, -30f), AccentColor, new Vector2(0f, 1f));
+        CreateBar("Rules Side Glow", rulesPanel, new Vector2(4f, 500f), new Vector2(28f, -52f), AccentColor, new Vector2(0f, 1f));
+
+        var rulesTitle = CreateText("Rules Title", rulesPanel, "RULES OF THE LABYRINTHE", 22, FontStyle.Bold, AccentColor);
+        rulesTitle.rectTransform.anchoredPosition = new Vector2(48f, -58f);
+        rulesTitle.rectTransform.sizeDelta = new Vector2(300f, 32f);
+
+        var rules = CreateText(
+            "Rules Text",
+            rulesPanel,
+            "MOVE: [W][A][S][D]\n\nJUMP: [SPACE]\n\nGRAVITY SHIFT:\n  - LEFT: [Z]\n  - FORWARD: [X]\n  - RIGHT: [C]\n\nMOUSE SENSITIVITY:\n  [CTRL] + [SCROLL] or [+]/[-]\n\nOBJECTIVE:\n  Find GOAL ZONE.\n\nTIME LIMIT: 03:00",
+            18,
+            FontStyle.Bold,
+            TextColor);
+        rules.rectTransform.anchoredPosition = new Vector2(52f, -120f);
+        rules.rectTransform.sizeDelta = new Vector2(288f, 390f);
+        rules.lineSpacing = 0.92f;
+
+        var startPanel = CreateRect("Start Action Panel", startOverlay, new Vector2(520f, 150f));
+        startPanel.anchorMin = new Vector2(0.5f, 0f);
+        startPanel.anchorMax = new Vector2(0.5f, 0f);
+        startPanel.pivot = new Vector2(0.5f, 0f);
+        startPanel.anchoredPosition = new Vector2(170f, 72f);
+        startPanel.gameObject.AddComponent<Image>().color = new Color(0f, 0.025f, 0.045f, 0.38f);
         AddOutline(startPanel.gameObject, AccentColor, 0.5f);
 
-        CreateBar("Start Top Line",  startPanel, new Vector2(480f, 3f),   new Vector2(30f, -24f),  AccentColor, new Vector2(0f, 1f));
-        CreateBar("Start Side Line", startPanel, new Vector2(4f,   168f), new Vector2(30f, -52f),  AccentColor, new Vector2(0f, 1f));
+        CreateBar("Start Action Top Line", startPanel, new Vector2(420f, 3f), new Vector2(50f, -22f), AccentColor, new Vector2(0f, 1f));
 
-        var title = CreateText("Start Title", startPanel, "GRAVITY LABYRINTHE", 34, FontStyle.Bold, TextColor);
-        title.rectTransform.anchoredPosition = new Vector2(52f, -58f);
-        title.rectTransform.sizeDelta        = new Vector2(430f, 42f);
+        var subtitle = CreateText("Start Subtitle", startPanel, "A UNITY & C# MINI-GAME PROJECT", 17, FontStyle.Bold, TextColor);
+        subtitle.alignment = TextAnchor.MiddleCenter;
+        subtitle.rectTransform.anchoredPosition = new Vector2(50f, -34f);
+        subtitle.rectTransform.sizeDelta        = new Vector2(420f, 26f);
 
-        var subtitle = CreateText("Start Subtitle", startPanel, "SYSTEM ONLINE  |  SHIFT GRAVITY TO ESCAPE", 13, FontStyle.Bold, MutedTextColor);
-        subtitle.rectTransform.anchoredPosition = new Vector2(54f, -105f);
-        subtitle.rectTransform.sizeDelta        = new Vector2(430f, 22f);
-
-        var startBtn = CreateButton("Start Button", startPanel, "START", new Vector2(182f, 52f), new Vector2(54f, -158f));
+        var startBtn = CreateButton("Start Button", startPanel, "START", new Vector2(310f, 64f), new Vector2(105f, -74f));
+        AddOutline(startBtn.gameObject, AccentColor, 0.85f);
         startBtn.onClick.AddListener(StartGame);
 
         var hint = CreateText("Start Hint", startPanel, "ENTER / SPACE", 12, FontStyle.Bold, MutedTextColor);
-        hint.rectTransform.anchoredPosition = new Vector2(260f, -174f);
-        hint.rectTransform.sizeDelta        = new Vector2(180f, 20f);
+        hint.alignment = TextAnchor.MiddleCenter;
+        hint.rectTransform.anchoredPosition = new Vector2(105f, -136f);
+        hint.rectTransform.sizeDelta        = new Vector2(310f, 18f);
+    }
+
+    void CreateStartBackground(Transform parent)
+    {
+        Texture2D backgroundTexture = LoadStartBackgroundTexture();
+        if (backgroundTexture == null)
+        {
+            Debug.LogWarning($"[StartAndSensitivityUI] Image de fond introuvable. Chemin attendu: {StartBackgroundAssetPath} ou Assets/Resources/{StartBackgroundResourceName}.png");
+            return;
+        }
+
+        var bg = CreateFullRect("Start Background Photo", parent);
+        bg.SetAsFirstSibling();
+
+        var rawImage = bg.gameObject.AddComponent<RawImage>();
+        rawImage.texture = backgroundTexture;
+        rawImage.color = Color.white;
+
+        var fitter = bg.gameObject.AddComponent<AspectRatioFitter>();
+        fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+        fitter.aspectRatio = backgroundTexture.width / (float)backgroundTexture.height;
+    }
+
+    Texture2D LoadStartBackgroundTexture()
+    {
+        Texture2D texture = Resources.Load<Texture2D>(StartBackgroundResourceName);
+        if (texture != null)
+            return texture;
+
+#if UNITY_EDITOR
+        texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(StartBackgroundAssetPath);
+        if (texture != null)
+        {
+            Debug.Log($"[StartAndSensitivityUI] Background charge depuis {StartBackgroundAssetPath}");
+            return texture;
+        }
+
+        string[] exactMatches = UnityEditor.AssetDatabase.FindAssets($"{StartBackgroundResourceName} t:Texture2D", new[] { "Assets" });
+        foreach (string guid in exactMatches)
+        {
+            string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture != null)
+            {
+                Debug.Log($"[StartAndSensitivityUI] Background charge depuis {path}");
+                return texture;
+            }
+        }
+
+        string[] allTextures = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets" });
+        foreach (string guid in allTextures)
+        {
+            string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            if (!path.EndsWith(".jpg", System.StringComparison.OrdinalIgnoreCase) &&
+                !path.EndsWith(".jpeg", System.StringComparison.OrdinalIgnoreCase) &&
+                !path.EndsWith(".png", System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture == null)
+                continue;
+
+            float aspect = texture.width / (float)texture.height;
+            if (aspect > 1.65f && aspect < 1.9f)
+            {
+                Debug.Log($"[StartAndSensitivityUI] Background 16:9 detecte automatiquement: {path}. Renomme-le {StartBackgroundResourceName}.jpg dans Assets/Resources pour un build.");
+                return texture;
+            }
+        }
+#endif
+
+        return null;
     }
 
     void BuildSensitivityUI()
