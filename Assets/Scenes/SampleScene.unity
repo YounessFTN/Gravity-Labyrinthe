@@ -489,6 +489,63 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1153314447
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 100000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_Name
+      value: art_2 (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -233.4898
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.00000086876025
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -325.81213
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ac4b748f8929540418552255a129f014, type: 3}
 --- !u!1 &1238063130
 GameObject:
   m_ObjectHideFlags: 0
@@ -526,13 +583,22 @@ MonoBehaviour:
   wallThickness: 0.5
   murs:
     materiaux: []
+    texture: {fileID: 2800000, guid: 94d2277d01aa74fd8829aa397b8600e4, type: 3}
+    textureTiling: {x: 1, y: 1}
+    textureOffset: {x: 0, y: 0}
     couleurAuto: {r: 0, g: 0, b: 0, a: 1}
   sol:
     materiaux:
-    - {fileID: 2100000, guid: 10de6384af0c3b54e8166f9c3f936e88, type: 2}
+    - {fileID: 2100000, guid: 0f4853191d321d748b1f95a97d7b37f4, type: 2}
+    texture: {fileID: 2800000, guid: eae2b3e7d7c5c49b28c2a84c57bbaef8, type: 3}
+    textureTiling: {x: 1, y: 1}
+    textureOffset: {x: 0, y: 0}
     couleurAuto: {r: 1, g: 0.03235809, b: 0, a: 1}
   toit:
     materiaux: []
+    texture: {fileID: 0}
+    textureTiling: {x: 1, y: 1}
+    textureOffset: {x: 0, y: 0}
     couleurAuto: {r: 1, g: 1, b: 1, a: 1}
   goalPlatformMaterial: {fileID: 0}
   player: {fileID: 1402047162}
@@ -573,6 +639,11 @@ MonoBehaviour:
   prefabFloor: {fileID: 162146, guid: 5bceb99c9fa1f2a4bb9692e518bec46c, type: 3}
   prefabWall: {fileID: 122448, guid: ef77650fcc7dfd64a8d614922d90c382, type: 3}
   prefabLight: {fileID: 113558, guid: 9c0a6df65fcfba243abb2cf9260b869f, type: 3}
+  wallTexture: {fileID: 2800000, guid: 94d2277d01aa74fd8829aa397b8600e4, type: 3}
+  wallMaterial: {fileID: 0}
+  wallTint: {r: 1, g: 1, b: 1, a: 1}
+  wallTextureTiling: {x: 1, y: 1}
+  wallTextureOffset: {x: 0, y: 0}
   player: {fileID: 1402047162}
   goal: {fileID: 0}
   cols: 8
@@ -890,3 +961,4 @@ SceneRoots:
   - {fileID: 1238063132}
   - {fileID: 810690867}
   - {fileID: 1246570993}
+  - {fileID: 1153314447}

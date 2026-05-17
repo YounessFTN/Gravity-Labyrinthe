@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
+
+
 // Configuration d'une surface du labyrinthe (mur / sol / toit)
 [System.Serializable]
 public class SurfaceStyle
@@ -36,6 +38,12 @@ public class MazeGenerator : MonoBehaviour
     public SurfaceStyle sol   = new() { couleurAuto = new Color(0.76f, 0.70f, 0.60f) };
     public SurfaceStyle toit  = new() { couleurAuto = new Color(0.13f, 0.13f, 0.20f) };
 
+    [Header("Art décoratif (tombe avec la gravité)")]
+    public GameObject[] artPrefabs = new GameObject[6];
+    [Range(1, 20)] public int artEvery = 5;
+    [Tooltip("Hauteur de l'art au-dessus du sol de la cellule")]
+    public float artHeightOffset = 0.5f;
+
     [Header("Zone de sortie")]
     public Material goalPlatformMaterial;
 
@@ -55,11 +63,13 @@ public class MazeGenerator : MonoBehaviour
     void Reset()
     {
         AutoAssignDefaultWallTexture();
+        AutoAssignArtPrefabs();
     }
 
     void OnValidate()
     {
         AutoAssignDefaultWallTexture();
+        AutoAssignArtPrefabs();
     }
 
     void Start()
@@ -92,6 +102,7 @@ public class MazeGenerator : MonoBehaviour
         BuildGeometry();
         BuildGoalRoom();
         StaticBatchingUtility.Combine(gameObject);
+        PlaceArt();
         PlaceActors();
     }
 
@@ -166,6 +177,17 @@ public class MazeGenerator : MonoBehaviour
 #endif
     }
 
+    void AutoAssignArtPrefabs()
+    {
+#if UNITY_EDITOR
+        if (artPrefabs == null || artPrefabs.Length != 6) artPrefabs = new GameObject[6];
+        const string ARTS = "Assets/Sci-Fi Styled Modular Pack/Prefabs/Decorative elements/Arts";
+        for (int i = 0; i < 6; i++)
+            if (!artPrefabs[i])
+                artPrefabs[i] = AssetDatabase.LoadAssetAtPath<GameObject>($"{ARTS}/art_{i + 1}.prefab");
+#endif
+    }
+
     static void SetTexture(Material mat, string propertyName, Texture texture)
     {
         if (mat.HasProperty(propertyName))
@@ -184,7 +206,7 @@ public class MazeGenerator : MonoBehaviour
         for (int i = transform.childCount - 1; i >= 0; i--)
         {
             var child = transform.GetChild(i);
-            if (child.name.StartsWith("Maze_") || child.name == "GoalRoom")
+            if (child.name.StartsWith("Maze_") || child.name == "GoalRoom" || child.name == "Art_Deco")
                 DestroyImmediate(child.gameObject);
         }
     }
@@ -327,6 +349,43 @@ public class MazeGenerator : MonoBehaviour
         triggerGO.AddComponent<GoalZone>();
 
         Debug.Log($"[MazeGenerator] GoalZone créée à {worldCenter}, rayon trigger = {col.radius:F2}");
+    }
+
+    // ── Placement de l'art ──────────────────────────────────────────────────────
+
+    void PlaceArt()
+    {
+        if (artPrefabs == null) return;
+        var available = System.Array.FindAll(artPrefabs, a => a != null);
+        if (available.Length == 0) return;
+
+        int counter = 0;
+        for (int gx = 1; gx < gridW; gx += 2)
+        for (int gy = 1; gy < gridH; gy += 2)
+        for (int gz = 1; gz < gridD; gz += 2)
+        {
+            if (grid[gx, gy, gz]) continue;
+
+            counter++;
+            if (counter % artEvery != 0) continue;
+
+            var prefab   = available[Random.Range(0, available.Length)];
+            float yFloor = posY[gy] - sizeY[gy] / 2f + artHeightOffset;
+            var worldPos = transform.TransformPoint(new Vector3(posX[gx], yFloor, posZ[gz]));
+
+            var art = Instantiate(prefab, worldPos, Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f), transform);
+            art.name = "Art_Deco";
+
+            if (art.GetComponent<Rigidbody>() == null)
+            {
+                var rb      = art.AddComponent<Rigidbody>();
+                rb.mass     = 1f;
+                rb.useGravity = true;
+            }
+
+            if (art.GetComponentInChildren<Collider>() == null)
+                art.AddComponent<BoxCollider>();
+        }
     }
 
     // ── Placement des acteurs ────────────────────────────────────────────────────
