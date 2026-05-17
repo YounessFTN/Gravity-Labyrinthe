@@ -7,6 +7,7 @@ using UnityEngine.UI;
 public class StartAndSensitivityUI : MonoBehaviour
 {
     const string InstanceName = "Start And Sensitivity UI";
+    const float GameDuration = 180f;
 
     static readonly Color BackgroundColor = new Color(0.005f, 0.018f, 0.035f, 0.92f);
     static readonly Color PanelColor      = new Color(0.018f, 0.055f, 0.09f,  0.86f);
@@ -24,16 +25,19 @@ public class StartAndSensitivityUI : MonoBehaviour
     CanvasGroup sensitivityGroup;
     CanvasGroup timerGroup;
     CanvasGroup victoryGroup;
+    CanvasGroup defeatGroup;
+    RectTransform timerPanel;
     Image  sensitivityFill;
     Image  sensitivityPulse;
     Text   sensitivityValueText;
     Text   sensitivityStateText;
     Text   timerText;
+    Text   elapsedText;
     Text   victoryTimeText;
 
     bool  started;
     bool  sensitivityOpen;
-    float timeRemaining = 180f;
+    float timeRemaining = GameDuration;
     bool  timerRunning;
 
     // ── Singleton ────────────────────────────────────────────────────────────────
@@ -61,7 +65,7 @@ public class StartAndSensitivityUI : MonoBehaviour
         // Réinitialise l'état (utile lors d'un rechargement de scène)
         started       = false;
         timerRunning  = false;
-        timeRemaining = 180f;
+        timeRemaining = GameDuration;
 
         if (player != null)
         {
@@ -103,6 +107,9 @@ public class StartAndSensitivityUI : MonoBehaviour
             timeRemaining -= Time.deltaTime;
             if (timeRemaining < 0f) timeRemaining = 0f;
             UpdateTimerDisplay();
+
+            if (timeRemaining <= 0f)
+                ShowDefeat();
         }
 
         bool ctrlPressed = Keyboard.current != null &&
@@ -143,7 +150,7 @@ public class StartAndSensitivityUI : MonoBehaviour
     {
         started       = true;
         timerRunning  = true;
-        timeRemaining = 180f;
+        timeRemaining = GameDuration;
         Time.timeScale = 1f;
 
         if (player != null)
@@ -159,10 +166,15 @@ public class StartAndSensitivityUI : MonoBehaviour
         timerGroup.alpha          = 1f;
         timerGroup.interactable   = false;
         timerGroup.blocksRaycasts = false;
+        timerPanel.SetAsLastSibling();
 
         victoryGroup.alpha          = 0f;
         victoryGroup.interactable   = false;
         victoryGroup.blocksRaycasts = false;
+
+        defeatGroup.alpha          = 0f;
+        defeatGroup.interactable   = false;
+        defeatGroup.blocksRaycasts = false;
 
         UpdateTimerDisplay();
         SetSensitivityPanelOpen(false);
@@ -184,6 +196,10 @@ public class StartAndSensitivityUI : MonoBehaviour
         victoryGroup.alpha          = 0f;
         victoryGroup.interactable   = false;
         victoryGroup.blocksRaycasts = false;
+
+        defeatGroup.alpha          = 0f;
+        defeatGroup.interactable   = false;
+        defeatGroup.blocksRaycasts = false;
 
         SetSensitivityPanelOpen(false);
     }
@@ -208,7 +224,28 @@ public class StartAndSensitivityUI : MonoBehaviour
         victoryGroup.alpha          = 1f;
         victoryGroup.interactable   = true;
         victoryGroup.blocksRaycasts = true;
+        victoryGroup.transform.SetAsLastSibling();
         Debug.Log("[StartAndSensitivityUI] victoryGroup rendu visible (alpha=1).");
+    }
+
+    void ShowDefeat()
+    {
+        timerRunning = false;
+
+        if (player != null)
+        {
+            player.SetControlsEnabled(false);
+            player.LockCursor(false);
+        }
+
+        timerGroup.alpha          = 0f;
+        timerGroup.interactable   = false;
+        timerGroup.blocksRaycasts = false;
+
+        defeatGroup.alpha          = 1f;
+        defeatGroup.interactable   = true;
+        defeatGroup.blocksRaycasts = true;
+        defeatGroup.transform.SetAsLastSibling();
     }
 
     void RestartGame()
@@ -227,6 +264,12 @@ public class StartAndSensitivityUI : MonoBehaviour
 
         int totalSec = Mathf.CeilToInt(Mathf.Max(0f, timeRemaining));
         timerText.text = $"{totalSec / 60:D2}:{totalSec % 60:D2}";
+
+        if (elapsedText != null)
+        {
+            int elapsedSec = Mathf.FloorToInt(Mathf.Max(0f, GameDuration - timeRemaining));
+            elapsedText.text = $"ECOULE {elapsedSec / 60:D2}:{elapsedSec % 60:D2}";
+        }
 
         timerText.color = timeRemaining <= 30f
             ? Color.Lerp(DangerColor, new Color(1f, 0.6f, 0.6f), 0.5f + Mathf.Sin(Time.unscaledTime * 6f) * 0.5f)
@@ -283,7 +326,7 @@ public class StartAndSensitivityUI : MonoBehaviour
     {
         var canvas = gameObject.AddComponent<Canvas>();
         canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 110;
+        canvas.sortingOrder = 1000;
 
         var scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -297,6 +340,7 @@ public class StartAndSensitivityUI : MonoBehaviour
         BuildSensitivityUI();
         BuildTimerUI();
         BuildVictoryUI();
+        BuildDefeatUI();
     }
 
     void BuildStartUI()
@@ -397,12 +441,12 @@ public class StartAndSensitivityUI : MonoBehaviour
 
     void BuildTimerUI()
     {
-        // Petit panneau en haut à gauche, caché jusqu'au démarrage
-        var timerPanel = CreateRect("Timer Panel", transform, new Vector2(160f, 76f));
-        timerPanel.anchorMin        = new Vector2(0f, 1f);
-        timerPanel.anchorMax        = new Vector2(0f, 1f);
-        timerPanel.pivot            = new Vector2(0f, 1f);
-        timerPanel.anchoredPosition = new Vector2(24f, -24f);
+        // Panneau centré en haut pour rendre le temps restant évident pendant le jeu.
+        timerPanel = CreateRect("Timer Panel", transform, new Vector2(380f, 148f));
+        timerPanel.anchorMin        = new Vector2(0.5f, 1f);
+        timerPanel.anchorMax        = new Vector2(0.5f, 1f);
+        timerPanel.pivot            = new Vector2(0.5f, 1f);
+        timerPanel.anchoredPosition = new Vector2(0f, -18f);
 
         timerGroup = timerPanel.gameObject.AddComponent<CanvasGroup>();
         timerGroup.alpha          = 0f;
@@ -412,16 +456,22 @@ public class StartAndSensitivityUI : MonoBehaviour
         timerPanel.gameObject.AddComponent<Image>().color = PanelColor;
         AddOutline(timerPanel.gameObject, AccentColor, 0.5f);
 
-        CreateBar("Timer Side", timerPanel, new Vector2(3f, 56f), new Vector2(14f, -10f), AccentColor, new Vector2(0f, 1f));
+        CreateBar("Timer Side", timerPanel, new Vector2(4f, 120f), new Vector2(18f, -14f), AccentColor, new Vector2(0f, 1f));
 
-        var label = CreateText("Timer Label", timerPanel, "TEMPS", 11, FontStyle.Bold, MutedTextColor);
-        label.rectTransform.anchoredPosition = new Vector2(26f, -13f);
-        label.rectTransform.sizeDelta        = new Vector2(120f, 16f);
+        var label = CreateText("Timer Label", timerPanel, "TEMPS DE MISSION", 16, FontStyle.Bold, AccentColor);
+        label.alignment = TextAnchor.MiddleCenter;
+        label.rectTransform.anchoredPosition = new Vector2(44f, -18f);
+        label.rectTransform.sizeDelta        = new Vector2(296f, 24f);
 
-        timerText = CreateText("Timer Value", timerPanel, "03:00", 30, FontStyle.Bold, TextColor);
-        timerText.alignment = TextAnchor.MiddleLeft;
-        timerText.rectTransform.anchoredPosition = new Vector2(24f, -44f);
-        timerText.rectTransform.sizeDelta        = new Vector2(128f, 32f);
+        timerText = CreateText("Timer Value", timerPanel, "03:00", 52, FontStyle.Bold, TextColor);
+        timerText.alignment = TextAnchor.MiddleCenter;
+        timerText.rectTransform.anchoredPosition = new Vector2(44f, -50f);
+        timerText.rectTransform.sizeDelta        = new Vector2(296f, 62f);
+
+        elapsedText = CreateText("Timer Elapsed", timerPanel, "ECOULE 00:00", 16, FontStyle.Bold, AccentColor);
+        elapsedText.alignment = TextAnchor.MiddleCenter;
+        elapsedText.rectTransform.anchoredPosition = new Vector2(44f, -118f);
+        elapsedText.rectTransform.sizeDelta        = new Vector2(296f, 22f);
     }
 
     void BuildVictoryUI()
@@ -466,6 +516,43 @@ public class StartAndSensitivityUI : MonoBehaviour
         victoryTimeText.rectTransform.sizeDelta        = new Vector2(480f, 22f);
 
         var replayBtn = CreateButton("Replay Button", panel, "REJOUER", new Vector2(200f, 52f), new Vector2(52f, -270f));
+        replayBtn.onClick.AddListener(RestartGame);
+    }
+
+    void BuildDefeatUI()
+    {
+        var defeatOverlay = CreateFullRect("Defeat Overlay", transform);
+        defeatGroup = defeatOverlay.gameObject.AddComponent<CanvasGroup>();
+        defeatGroup.alpha          = 0f;
+        defeatGroup.interactable   = false;
+        defeatGroup.blocksRaycasts = false;
+        defeatOverlay.gameObject.AddComponent<Image>().color = BackgroundColor;
+
+        var panel = CreateRect("Defeat Panel", defeatOverlay, new Vector2(580f, 340f));
+        panel.anchorMin        = new Vector2(0.5f, 0.5f);
+        panel.anchorMax        = new Vector2(0.5f, 0.5f);
+        panel.pivot            = new Vector2(0.5f, 0.5f);
+        panel.anchoredPosition = Vector2.zero;
+
+        panel.gameObject.AddComponent<Image>().color = PanelColor;
+        AddOutline(panel.gameObject, DangerColor, 0.7f);
+
+        CreateBar("Defeat Top Line",  panel, new Vector2(520f, 3f),   new Vector2(30f, -28f), DangerColor, new Vector2(0f, 1f));
+        CreateBar("Defeat Side Line", panel, new Vector2(4f,   260f), new Vector2(30f, -56f), DangerColor, new Vector2(0f, 1f));
+
+        var missionLabel = CreateText("Defeat Label", panel, "EXPERIENCE TERMINEE", 13, FontStyle.Bold, MutedTextColor);
+        missionLabel.rectTransform.anchoredPosition = new Vector2(52f, -60f);
+        missionLabel.rectTransform.sizeDelta        = new Vector2(480f, 20f);
+
+        var title = CreateText("Defeat Title", panel, "TEMPS ECOULE", 44, FontStyle.Bold, DangerColor);
+        title.rectTransform.anchoredPosition = new Vector2(48f, -100f);
+        title.rectTransform.sizeDelta        = new Vector2(480f, 58f);
+
+        var subtitle = CreateText("Defeat Subtitle", panel, "Ashiro a ete capture par le systeme.", 20, FontStyle.Normal, TextColor);
+        subtitle.rectTransform.anchoredPosition = new Vector2(52f, -166f);
+        subtitle.rectTransform.sizeDelta        = new Vector2(480f, 30f);
+
+        var replayBtn = CreateButton("Defeat Replay Button", panel, "REJOUER", new Vector2(200f, 52f), new Vector2(52f, -250f));
         replayBtn.onClick.AddListener(RestartGame);
     }
 

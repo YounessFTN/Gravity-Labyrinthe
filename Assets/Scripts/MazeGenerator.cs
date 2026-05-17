@@ -246,6 +246,7 @@ public class MazeGenerator : MonoBehaviour
         platform.transform.SetParent(root.transform, true);
         platform.transform.position   = worldCenter - new Vector3(0f, cellSize * 0.45f, 0f);
         platform.transform.localScale = new Vector3(platW, wallThickness * 3f, platW);
+        DestroyImmediate(platform.GetComponent<Collider>());
 
         var rend = platform.GetComponent<Renderer>();
         if (goalPlatformMaterial != null)
