@@ -1,26 +1,37 @@
 using UnityEngine;
 
+// Configuration d'une surface du labyrinthe (mur / sol / toit)
+[System.Serializable]
+public class SurfaceStyle
+{
+    [Tooltip("Matériaux disponibles — un est choisi aléatoirement pour chaque cube. Laisser vide = couleur automatique.")]
+    public Material[] materiaux;
+
+    [Tooltip("Couleur utilisée si aucun matériau n'est assigné.")]
+    public Color couleurAuto = Color.gray;
+}
+
 [ExecuteAlways]
 public class MazeGenerator : MonoBehaviour
 {
     [Header("Dimensions")]
-    [Range(2, 7)] public int width = 4;
+    [Range(2, 7)] public int width  = 4;
     [Range(2, 7)] public int height = 4;
-    [Range(2, 7)] public int depth = 4;
+    [Range(2, 7)] public int depth  = 4;
 
-    [Header("Geometry")]
-    public float cellSize = 4f;
+    [Header("Géométrie")]
+    public float cellSize      = 4f;
     public float wallThickness = 0.5f;
 
-    [Header("Materials (laisser vide = couleurs auto)")]
-    public Material wallMaterial;
-    public Material floorMaterial;
-    public Material ceilingMaterial;
+    [Header("Style des surfaces")]
+    public SurfaceStyle murs  = new() { couleurAuto = new Color(0.22f, 0.36f, 0.58f) };
+    public SurfaceStyle sol   = new() { couleurAuto = new Color(0.76f, 0.70f, 0.60f) };
+    public SurfaceStyle toit  = new() { couleurAuto = new Color(0.13f, 0.13f, 0.20f) };
 
     [Header("Zone de sortie")]
     public Material goalPlatformMaterial;
 
-    [Header("Actors")]
+    [Header("Acteurs")]
     public Transform player;
 
     [Header("Seed (0 = aléatoire)")]
@@ -30,8 +41,8 @@ public class MazeGenerator : MonoBehaviour
     private int gridW, gridH, gridD;
     private float[] posX, sizeX, posY, sizeY, posZ, sizeZ;
 
-    // Matériaux résolus au moment de la génération
-    private Material _matWall, _matFloor, _matCeiling;
+    // Matériaux de secours créés une seule fois quand les tableaux sont vides
+    private Material _autoWall, _autoFloor, _autoCeiling;
 
     void Start()
     {
@@ -46,11 +57,7 @@ public class MazeGenerator : MonoBehaviour
             Random.InitState(seed);
 
         ClearMaze();
-
-        // Couleurs par défaut si aucun matériau assigné dans l'Inspector
-        _matFloor   = floorMaterial   ?? MakeMat(new Color(0.76f, 0.70f, 0.60f)); // sable clair
-        _matCeiling = ceilingMaterial ?? MakeMat(new Color(0.13f, 0.13f, 0.20f)); // gris nuit
-        _matWall    = wallMaterial    ?? MakeMat(new Color(0.22f, 0.36f, 0.58f)); // bleu acier
+        PrepareAutoMaterials();
 
         gridW = 2 * width  + 1;
         gridH = 2 * height + 1;
@@ -70,9 +77,51 @@ public class MazeGenerator : MonoBehaviour
         PlaceActors();
     }
 
-    // Crée un matériau Standard opaque avec la couleur donnée
+    // Crée un matériau opaque unique quand le tableau d'une surface est vide
+    void PrepareAutoMaterials()
+    {
+        _autoFloor   = HasMats(sol)  ? null : MakeMat(sol.couleurAuto);
+        _autoCeiling = HasMats(toit) ? null : MakeMat(toit.couleurAuto);
+        _autoWall    = HasMats(murs) ? null : MakeMat(murs.couleurAuto);
+    }
+
+    static bool HasMats(SurfaceStyle s) =>
+        s.materiaux != null && System.Array.Exists(s.materiaux, m => m != null);
+
+    static Shader LitShader()
+    {
+        return Shader.Find("Universal Render Pipeline/Lit")  // URP
+            ?? Shader.Find("HDRP/Lit")                       // HDRP
+            ?? Shader.Find("Standard");                       // Built-in
+    }
+
     static Material MakeMat(Color color) =>
-        new Material(Shader.Find("Standard")) { color = color };
+        new Material(LitShader()) { color = color };
+
+    // Choisit un matériau au hasard dans le tableau, ou retourne le matériau auto
+    static Material Pick(SurfaceStyle style, Material autoMat)
+    {
+        if (autoMat != null)
+            return autoMat;
+
+        // Filtre les slots vides et pioche au hasard
+        int count = 0;
+        foreach (var m in style.materiaux)
+            if (m != null) count++;
+
+        if (count == 0)
+            return MakeMat(style.couleurAuto);
+
+        int pick = Random.Range(0, count);
+        int idx  = 0;
+        foreach (var m in style.materiaux)
+        {
+            if (m == null) continue;
+            if (idx == pick) return m;
+            idx++;
+        }
+        return null;
+    }
 
     [ContextMenu("Clear Maze")]
     public void ClearMaze()
@@ -143,14 +192,16 @@ public class MazeGenerator : MonoBehaviour
     }
 
     // ── Sélection du matériau ────────────────────────────────────────────────────
-    //   gy pair  = dalle horizontale → sol (bas) ou plafond (sommet)
+    //   gy pair  = dalle horizontale (sol bas, toit sommet)
     //   gy impair = mur vertical
 
     Material PickMaterial(int gy)
     {
         if (gy % 2 == 0)
-            return gy == gridH - 1 ? _matCeiling : _matFloor;
-        return _matWall;
+            return gy == gridH - 1
+                ? Pick(toit, _autoCeiling)
+                : Pick(sol,  _autoFloor);
+        return Pick(murs, _autoWall);
     }
 
     // ── Construction des cubes ──────────────────────────────────────────────────
@@ -189,9 +240,8 @@ public class MazeGenerator : MonoBehaviour
         var root = new GameObject("GoalRoom");
         root.transform.SetParent(transform, false);
 
-        // Grosse plateforme au sol de la salle
-        float platW = cellSize * 0.9f;
-        var platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        float platW   = cellSize * 0.9f;
+        var platform  = GameObject.CreatePrimitive(PrimitiveType.Cube);
         platform.name = "GoalPlatform";
         platform.transform.SetParent(root.transform, true);
         platform.transform.position   = worldCenter - new Vector3(0f, cellSize * 0.45f, 0f);
@@ -204,19 +254,17 @@ public class MazeGenerator : MonoBehaviour
         }
         else
         {
-            var platMat = new Material(Shader.Find("Standard")) { color = new Color(0.1f, 0.9f, 0.4f) };
+            var platMat = new Material(LitShader()) { color = new Color(0.1f, 0.9f, 0.4f) };
             platMat.SetColor("_EmissionColor", new Color(0f, 0.4f, 0.15f));
             platMat.EnableKeyword("_EMISSION");
             rend.material = platMat;
         }
 
-        // Crée la GoalZone + son trigger directement dans la salle — pas besoin de l'assigner dans l'Inspector
         var triggerGO = new GameObject("GoalZoneTrigger");
         triggerGO.transform.SetParent(root.transform, true);
         triggerGO.transform.position = worldCenter;
 
-        // Ajouter le collider AVANT GoalZone pour que son Awake() le trouve déjà
-        var col = triggerGO.AddComponent<SphereCollider>();
+        var col       = triggerGO.AddComponent<SphereCollider>();
         col.radius    = cellSize * 0.48f;
         col.isTrigger = true;
 

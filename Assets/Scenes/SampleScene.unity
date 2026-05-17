@@ -383,6 +383,63 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!1001 &810690867
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 100000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_Name
+      value: art_2
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -9092.373
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.0000000028433647
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -4778.665
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: ac4b748f8929540418552255a129f014, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ac4b748f8929540418552255a129f014, type: 3}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -457,7 +514,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1238063130}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ee995d86eee349a19d037078b4af128, type: 3}
   m_Name: 
@@ -467,9 +524,17 @@ MonoBehaviour:
   depth: 4
   cellSize: 4
   wallThickness: 0.5
-  wallMaterial: {fileID: 0}
+  murs:
+    materiaux: []
+    couleurAuto: {r: 0, g: 0, b: 0, a: 1}
+  sol:
+    materiaux: []
+    couleurAuto: {r: 0.76, g: 0.7, b: 0.6, a: 1}
+  toit:
+    materiaux: []
+    couleurAuto: {r: 0.13, g: 0.13, b: 0.2, a: 1}
+  goalPlatformMaterial: {fileID: 0}
   player: {fileID: 1402047162}
-  goal: {fileID: 0}
   seed: 0
 --- !u!4 &1238063132
 Transform:
@@ -494,18 +559,18 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1238063130}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 68e0f761de74d4bc59cdff8e1e721497, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SciFiMazeGenerator
-  prefabDeadEnd: {fileID: 126730, guid: f18932879bb23b84ca5370b65419ee41, type: 3}
-  prefabStraight: {fileID: 115042, guid: 64b3f36e835346747865afbf6cf62acf, type: 3}
-  prefabCorner: {fileID: 148804, guid: 3fb07e96bb0cae643a28994c86ddc64e, type: 3}
-  prefabT: {fileID: 165962, guid: d2eb17f175564e84c8ad78ac03232e29, type: 3}
-  prefabCross: {fileID: 152896, guid: d17bc9c1cdef1c5448255edad31c1c61, type: 3}
+  prefabDeadEnd: {fileID: 122448, guid: ef77650fcc7dfd64a8d614922d90c382, type: 3}
+  prefabStraight: {fileID: 126580, guid: bf2139b42b42c8c4a96e509af12fe05d, type: 3}
+  prefabCorner: {fileID: 122448, guid: ef77650fcc7dfd64a8d614922d90c382, type: 3}
+  prefabT: {fileID: 122448, guid: ef77650fcc7dfd64a8d614922d90c382, type: 3}
+  prefabCross: {fileID: 122448, guid: ef77650fcc7dfd64a8d614922d90c382, type: 3}
   prefabFloor: {fileID: 162146, guid: 5bceb99c9fa1f2a4bb9692e518bec46c, type: 3}
-  prefabWall: {fileID: 127348, guid: e37a5396a520a8e4e8e48c74975b6a61, type: 3}
+  prefabWall: {fileID: 122448, guid: ef77650fcc7dfd64a8d614922d90c382, type: 3}
   prefabLight: {fileID: 113558, guid: 9c0a6df65fcfba243abb2cf9260b869f, type: 3}
   player: {fileID: 1402047162}
   goal: {fileID: 0}
@@ -652,6 +717,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   moveSpeed: 5
   mouseSensitivity: 2
+  minMouseSensitivity: 0.2
+  maxMouseSensitivity: 8
+  jumpForce: 5
+  groundCheckDistance: 0.1
+  controlsEnabled: 1
+  autoCreateStartUI: 1
   cameraTransform: {fileID: 330585546}
 --- !u!114 &1402047167
 MonoBehaviour:
@@ -667,6 +738,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   gravityStrength: 9.81
   rotationDuration: 0.5
+  gravityCooldown: 3
+  gravityStatusUI: {fileID: 0}
+  autoCreateGravityStatusUI: 1
 --- !u!1 &1759913415
 GameObject:
   m_ObjectHideFlags: 0
@@ -754,3 +828,4 @@ SceneRoots:
   - {fileID: 832575519}
   - {fileID: 1759913418}
   - {fileID: 1238063132}
+  - {fileID: 810690867}
