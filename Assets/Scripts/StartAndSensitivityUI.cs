@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -9,6 +11,8 @@ public class StartAndSensitivityUI : MonoBehaviour
     const string InstanceName = "Start And Sensitivity UI";
     const string StartBackgroundResourceName = "StartBackground";
     const string StartBackgroundAssetPath = "Assets/bg-start.png";
+    const string StartIntroAudioResourceName = "Audio/StartIntro";
+    const string StartIntroSubtitlesResourceName = "Audio/StartIntroSubtitles";
     const float GameDuration = 180f;
 
     static readonly Color BackgroundColor = new Color(0.005f, 0.018f, 0.035f, 0.92f);
@@ -36,11 +40,23 @@ public class StartAndSensitivityUI : MonoBehaviour
     Text   timerText;
     Text   elapsedText;
     Text   victoryTimeText;
+    Text   introSubtitleText;
+    CanvasGroup introSubtitleGroup;
+    AudioSource introAudioSource;
+    readonly List<SubtitleCue> introSubtitleCues = new List<SubtitleCue>();
+    int activeIntroSubtitleIndex = -1;
 
     bool  started;
     bool  sensitivityOpen;
     float timeRemaining = GameDuration;
     bool  timerRunning;
+
+    struct SubtitleCue
+    {
+        public float start;
+        public float end;
+        public string text;
+    }
 
     // ── Singleton ────────────────────────────────────────────────────────────────
 
@@ -68,6 +84,7 @@ public class StartAndSensitivityUI : MonoBehaviour
         started       = false;
         timerRunning  = false;
         timeRemaining = GameDuration;
+        StopIntroAudio();
 
         if (player != null)
         {
@@ -106,8 +123,14 @@ public class StartAndSensitivityUI : MonoBehaviour
             {
                 StartGame();
             }
-            return;
         }
+        else
+        {
+            UpdateIntroSubtitles();
+        }
+
+        if (!started)
+            return;
 
         // Décompte du timer
         if (timerRunning && timeRemaining > 0f)
@@ -175,6 +198,7 @@ public class StartAndSensitivityUI : MonoBehaviour
         timerGroup.interactable   = false;
         timerGroup.blocksRaycasts = false;
         timerPanel.SetAsLastSibling();
+        PlayIntroAudio();
 
         victoryGroup.alpha          = 0f;
         victoryGroup.interactable   = false;
@@ -192,6 +216,7 @@ public class StartAndSensitivityUI : MonoBehaviour
     {
         started      = false;
         timerRunning = false;
+        StopIntroAudio();
 
         startGroup.alpha          = 1f;
         startGroup.interactable   = true;
@@ -216,6 +241,7 @@ public class StartAndSensitivityUI : MonoBehaviour
     {
         Debug.Log($"[StartAndSensitivityUI] ShowVictory() appelé. victoryGroup null={victoryGroup == null}");
         timerRunning = false;
+        StopIntroAudio();
 
         if (player != null)
         {
@@ -239,6 +265,7 @@ public class StartAndSensitivityUI : MonoBehaviour
     void ShowDefeat()
     {
         timerRunning = false;
+        StopIntroAudio();
 
         if (player != null)
         {
@@ -354,12 +381,29 @@ public class StartAndSensitivityUI : MonoBehaviour
 
         gameObject.AddComponent<GraphicRaycaster>();
         EnsureEventSystem();
+        BuildIntroAudio();
 
         BuildStartUI();
         BuildSensitivityUI();
         BuildTimerUI();
+        BuildIntroSubtitleUI();
         BuildVictoryUI();
         BuildDefeatUI();
+    }
+
+    void BuildIntroAudio()
+    {
+        introAudioSource = gameObject.AddComponent<AudioSource>();
+        introAudioSource.playOnAwake = false;
+        introAudioSource.loop = false;
+        introAudioSource.spatialBlend = 0f;
+        introAudioSource.ignoreListenerPause = true;
+        introAudioSource.clip = Resources.Load<AudioClip>(StartIntroAudioResourceName);
+
+        if (introAudioSource.clip == null)
+            Debug.LogWarning($"[StartAndSensitivityUI] Audio intro introuvable: Resources/{StartIntroAudioResourceName}.mp3");
+
+        LoadIntroSubtitles();
     }
 
     void BuildStartUI()
@@ -613,6 +657,32 @@ public class StartAndSensitivityUI : MonoBehaviour
         elapsedText.rectTransform.sizeDelta        = new Vector2(296f, 22f);
     }
 
+    void BuildIntroSubtitleUI()
+    {
+        var panel = CreateRect("Intro Subtitle Panel", transform, new Vector2(980f, 104f));
+        panel.anchorMin        = new Vector2(0.5f, 0f);
+        panel.anchorMax        = new Vector2(0.5f, 0f);
+        panel.pivot            = new Vector2(0.5f, 0f);
+        panel.anchoredPosition = new Vector2(0f, 34f);
+
+        introSubtitleGroup = panel.gameObject.AddComponent<CanvasGroup>();
+        introSubtitleGroup.alpha          = 0f;
+        introSubtitleGroup.interactable   = false;
+        introSubtitleGroup.blocksRaycasts = false;
+
+        panel.gameObject.AddComponent<Image>().color = new Color(0f, 0.018f, 0.032f, 0.78f);
+        AddOutline(panel.gameObject, AccentColor, 0.45f);
+
+        introSubtitleText = CreateText("Intro Subtitle Text", panel, "", 26, FontStyle.Bold, TextColor);
+        introSubtitleText.alignment = TextAnchor.MiddleCenter;
+        introSubtitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        introSubtitleText.verticalOverflow = VerticalWrapMode.Truncate;
+        introSubtitleText.rectTransform.anchorMin = Vector2.zero;
+        introSubtitleText.rectTransform.anchorMax = Vector2.one;
+        introSubtitleText.rectTransform.offsetMin = new Vector2(32f, 14f);
+        introSubtitleText.rectTransform.offsetMax = new Vector2(-32f, -14f);
+    }
+
     void BuildVictoryUI()
     {
         // Overlay plein écran, caché jusqu'à la victoire
@@ -693,6 +763,112 @@ public class StartAndSensitivityUI : MonoBehaviour
 
         var replayBtn = CreateButton("Defeat Replay Button", panel, "REJOUER", new Vector2(200f, 52f), new Vector2(52f, -250f));
         replayBtn.onClick.AddListener(RestartGame);
+    }
+
+    // ── Audio intro et sous-titres ───────────────────────────────────────────────
+
+    void PlayIntroAudio()
+    {
+        activeIntroSubtitleIndex = -1;
+        SetIntroSubtitle(null);
+
+        if (introAudioSource == null || introAudioSource.clip == null)
+            return;
+
+        introAudioSource.Stop();
+        introAudioSource.time = 0f;
+        introAudioSource.Play();
+        UpdateIntroSubtitles();
+    }
+
+    void StopIntroAudio()
+    {
+        if (introAudioSource != null)
+            introAudioSource.Stop();
+
+        activeIntroSubtitleIndex = -1;
+        SetIntroSubtitle(null);
+    }
+
+    void UpdateIntroSubtitles()
+    {
+        if (introAudioSource == null || !introAudioSource.isPlaying || introSubtitleCues.Count == 0)
+        {
+            SetIntroSubtitle(null);
+            activeIntroSubtitleIndex = -1;
+            return;
+        }
+
+        float time = introAudioSource.time;
+        int cueIndex = -1;
+
+        for (int i = 0; i < introSubtitleCues.Count; i++)
+        {
+            SubtitleCue cue = introSubtitleCues[i];
+            if (time >= cue.start && time < cue.end)
+            {
+                cueIndex = i;
+                break;
+            }
+        }
+
+        if (cueIndex == activeIntroSubtitleIndex)
+            return;
+
+        activeIntroSubtitleIndex = cueIndex;
+        SetIntroSubtitle(cueIndex >= 0 ? introSubtitleCues[cueIndex].text : null);
+    }
+
+    void SetIntroSubtitle(string text)
+    {
+        bool visible = !string.IsNullOrWhiteSpace(text);
+
+        if (introSubtitleText != null)
+            introSubtitleText.text = visible ? text : "";
+
+        if (introSubtitleGroup != null)
+        {
+            introSubtitleGroup.alpha = visible ? 1f : 0f;
+            if (visible)
+                introSubtitleGroup.transform.SetAsLastSibling();
+        }
+    }
+
+    void LoadIntroSubtitles()
+    {
+        introSubtitleCues.Clear();
+
+        TextAsset subtitleAsset = Resources.Load<TextAsset>(StartIntroSubtitlesResourceName);
+        if (subtitleAsset == null)
+        {
+            Debug.LogWarning($"[StartAndSensitivityUI] Sous-titres intro introuvables: Resources/{StartIntroSubtitlesResourceName}.txt");
+            return;
+        }
+
+        string[] lines = subtitleAsset.text.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
+        foreach (string rawLine in lines)
+        {
+            string line = rawLine.Trim();
+            if (line.Length == 0 || line.StartsWith("#"))
+                continue;
+
+            string[] parts = line.Split(new[] { '|' }, 3);
+            if (parts.Length != 3 ||
+                !float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float start) ||
+                !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float end) ||
+                end <= start)
+            {
+                Debug.LogWarning($"[StartAndSensitivityUI] Ligne de sous-titre ignoree: {line}");
+                continue;
+            }
+
+            introSubtitleCues.Add(new SubtitleCue
+            {
+                start = start,
+                end = end,
+                text = parts[2].Trim()
+            });
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────────

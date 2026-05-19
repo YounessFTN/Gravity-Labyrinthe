@@ -1,0 +1,13 @@
+0.00|5.00|Tokyo, année 2090.
+5.00|14.00|Dans les profondeurs de la mythologie japonaise, existe une ancienne légende transmise à travers les siècles.
+14.00|24.00|Une présence mystérieuse, dont le nom a été effacé de l'histoire officielle... Amatsu Mikaboshi.
+24.00|32.00|Tous les 5000 ans, son pouvoir se réincarne dans un humain.
+32.00|40.00|Cette fois, il vit à travers un jeune homme nommé Ashiro Nagamoro.
+40.00|47.00|Au début, Ashiro était un adolescent ordinaire.
+47.00|55.00|Mais bientôt, la gravité commença à se déformer autour de lui.
+55.00|67.00|Les objets flottaient, les bâtiments tremblaient... et plus ses émotions grandissaient, plus son pouvoir devenait incontrôlable.
+67.00|79.00|Craignant une catastrophe, le gouvernement japonais le captura et l'enferma dans une installation secrète : le Gravity Labyrinthe.
+79.00|91.00|Un complexe expérimental conçu pour étudier ses capacités, comprendre son pouvoir, et l'utiliser comme une arme.
+91.00|103.00|Désormais, Ashiro n'a plus qu'un seul objectif : maîtriser le pouvoir d'Amatsu Mikaboshi, survivre au Gravity Labyrinthe...
+103.00|110.00|et s'échapper avant qu'il ne soit trop tard.
+110.00|120.00|Car lorsque le temps sera écoulé, ceux qu'il aime paieront le prix de son échec.
