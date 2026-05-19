@@ -91,6 +91,12 @@ public class StartAndSensitivityUI : MonoBehaviour
 
     void Update()
     {
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            QuitGame();
+            return;
+        }
+
         if (!started)
         {
             if (Keyboard.current != null &&
@@ -258,6 +264,17 @@ public class StartAndSensitivityUI : MonoBehaviour
         SceneManager.LoadScene(sceneName);
     }
 
+    void QuitGame()
+    {
+        Time.timeScale = 1f;
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
     // ── Timer ─────────────────────────────────────────────────────────────────────
 
     void UpdateTimerDisplay()
@@ -394,13 +411,13 @@ public class StartAndSensitivityUI : MonoBehaviour
         var rules = CreateText(
             "Rules Text",
             rulesPanel,
-            "MOVE: [W][A][S][D]\n\nJUMP: [SPACE]\n\nGRAVITY SHIFT:\n  - LEFT: [Z]\n  - FORWARD: [X]\n  - RIGHT: [C]\n\nMOUSE SENSITIVITY:\n  [CTRL] + [SCROLL] or [+]/[-]\n\nOBJECTIVE:\n  Find GOAL ZONE.\n\nTIME LIMIT: 03:00",
+            "MOVE: [W][A][S][D]\n\nJUMP: [SPACE]\n\nGRAVITY SHIFT:\n  - LEFT: [Z]\n  - FORWARD: [X]\n  - RIGHT: [C]\n\nMOUSE SENSITIVITY:\n  [CTRL] + [SCROLL] or [+]/[-]\n\nQUIT GAME: [ESC]\n\nOBJECTIVE:\n  Find GOAL ZONE.\n\nTIME LIMIT: 03:00",
             18,
             FontStyle.Bold,
             TextColor);
         rules.rectTransform.anchoredPosition = new Vector2(52f, -120f);
-        rules.rectTransform.sizeDelta = new Vector2(288f, 390f);
-        rules.lineSpacing = 0.92f;
+        rules.rectTransform.sizeDelta = new Vector2(288f, 430f);
+        rules.lineSpacing = 0.88f;
 
         var startPanel = CreateRect("Start Action Panel", startOverlay, new Vector2(520f, 150f));
         startPanel.anchorMin = new Vector2(0.5f, 0f);
